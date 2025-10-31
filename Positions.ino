@@ -11,6 +11,8 @@ int UpValue = 110;
 int DownValue = 130;
 int OuterDownValue = 155;
 
+int printValue = 0;
+
 void setup() {
   Serial.begin(9600);  // Initialize Serial communication at 9600 baud
   Serial.println("Potentiometer Reader Started");
@@ -20,11 +22,14 @@ void setup() {
 void Readpot() {
   potValue = analogRead(potPin);  // Read analog value (0 to 1023)
 
-  angle = (270.0 / 1023.0) * potValue;  //map(potValue, 0, 1023, 0.0, 300.0);
+  angle = (270.0 / 1023.0) * potValue;  //map(potValue, 0, 1023, 0.0, 270.0);
   // Print values to Serial Monitor
   Serial.println(angle);
 }
 
 void loop() {
   Readpot();
+  printValue = (100 / (OuterDownValue-OuterUpValue)) * potValue;
+  Keyboard.println(printValue);
+  
 }
