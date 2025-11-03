@@ -6,10 +6,6 @@ int potValue = 0;       // Variable to store the potentiometer value
 float angle = 0.0;
 
 
-int OuterUpValue = 85;
-int UpValue = 110;
-int DownValue = 130;
-int OuterDownValue = 155;
 int OuterUpValue = 85; \\Variable to store the outer up position, can be adjusted
 int UpValue = 110; \\Variable to store the up position, can be adjusted
 int DownValue = 130; \\Variable to store the down position, can be adjusted
@@ -18,7 +14,6 @@ int OuterDownValue = 155; \\Variable to store the outer down position, can be ad
 void setup() {
   Serial.begin(9600);  // Initialize Serial communication at 9600 baud
   Serial.println("Potentiometer Reader Started");
-  Keyboard.begin();
   Keyboard.begin(); //needed to start keyboard emulation
 }
 
