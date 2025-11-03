@@ -3,7 +3,7 @@ from random import randint
 from PIL import Image, ImageTk
 
 # --- Global variables ---
-WIDTH, HEIGHT = 800, 800
+WIDTH, HEIGHT = 800, 600
 speed_value = 3
 limit = 0
 dist = 350
@@ -100,8 +100,8 @@ def score_board():
     canvas2 = Canvas(root2, width=400, height=300)
     canvas2.pack()
 
-    Label(canvas2, text=f"\ The bird escaped!\n\nYour score: {score}\n\n",
-          font=("Comic Sans MS", 20, "bold")).pack()
+    Label(canvas2, text=f"The bird escaped!\n\nYour score: {score}\n\n",
+          font=("Comic Sans MS", 17, "bold")).pack()
 
     Button(canvas2, text="PLAY AGAIN", bg="green", fg="white", font=("Arial",16,"bold"),
            command=lambda: [root2.destroy(), main()]).pack(pady=10)
@@ -111,32 +111,38 @@ def score_board():
 # --- Start menu ---
 def start_menu():
     canvas.delete("all")
-    canvas.create_image(0,0,image=bg_photo,anchor="nw")
+    canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
-    # Title text
-    canvas.create_text(WIDTH//2, 100, text=" Catch the Bird Game ",
-                       font=("Comic Sans MS", 90, "bold"), fill="black")
+    # Title text - Positioned near the top
+    canvas.create_text(WIDTH // 2, 80, text=" Catch the Bird Game ",
+                       font=("Comic Sans MS", 30, "bold"), fill="black")
 
-    # Instructions
-    canvas.create_text(WIDTH//2, 200,
+    # Instructions - Positioned below the title
+    canvas.create_text(WIDTH // 2, 170, # Increased y-coordinate to prevent overlap
                        text="Use UP/DOWN arrows or W/S to move the basket.\nCatch the bird to score points!",
-                       font=("Comic Sans MS", 70), fill="black", justify="center")
+                       font=("Comic Sans MS", 20), fill="black", justify="center", width=WIDTH-50) # Reduced font size for better fit
 
-    # Speed slider label
-    canvas.create_text(WIDTH//2, 300, text="Select bird speed (0 - 6):",
-                       font=("Comic Sans MS", 70), fill="black")
+    # Speed slider label - Positioned below instructions
+    canvas.create_text(WIDTH // 2, 280, text="Select bird speed (0 - 6):",
+                       font=("Comic Sans MS", 20), fill="black") # Reduced font size
 
     # Speed slider widget
-    speed_slider = Scale(canvas, from_=0, to=6, orient=HORIZONTAL, length=400, font=("Comic Sans MS",50))
+    speed_slider = Scale(canvas, from_=0, to=6, orient=HORIZONTAL, length=300, 
+                         font=("Comic Sans MS", 20), troughcolor="lightblue", highlightbackground="white")
     speed_slider.set(3)
-    speed_slider.place(x=200, y=350)
+    # Centering the slider: (WIDTH - length) / 2
+    slider_x = (WIDTH - 300) // 2 
+    speed_slider.place(x=slider_x, y=320) # Adjusted x and y
     menu_widgets.append(speed_slider)
 
     # Play button
-    play_button = Button(canvas, text="PLAY", font=("Comic Sans MS",50,"bold"),
-                         bg="green", fg="white", command=lambda: start_game(speed_slider.get()))
-    play_button.place(x=390, y=450)
+    play_button = Button(canvas, text="PLAY", font=("Comic Sans MS", 40, "bold"),
+                         bg="green", fg="white", activebackground="darkgreen", activeforeground="white",
+                         command=lambda: start_game(speed_slider.get()))
+    # Centering the button: (WIDTH - button_width) / 2. This is an estimate.
+    play_button.place(x=WIDTH//2 - 100, y=430) # Adjusted x and y
     menu_widgets.append(play_button)
+
 
 def start_game(selected_speed):
     global speed_value
@@ -160,7 +166,7 @@ def main():
 
     # Scoreboard
     score_text = canvas.create_text(700, 30, text=f"Score: {score}",
-                                    font=("Comic Sans MS", 28, "bold"), fill="black")
+                                    font=("Comic Sans MS", 20, "bold"), fill="black")
 
     # Basket
     global bar_obj
