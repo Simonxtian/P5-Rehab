@@ -20,7 +20,7 @@ void setup() {
 void Readpot() {
   potValue = analogRead(potPin);  // Read analog value (0 to 1023)
 
-  angle = (270.0 / 1023.0) * potValue;  //map(potValue, 0, 1023, 0.0, 300.0);
+  angle = (270.0 / 1023.0) * potValue;  //map(potValue, 0, 1023, 0.0, 270.0);
   // Print values to Serial Monitor
   Serial.println(angle);
 }
