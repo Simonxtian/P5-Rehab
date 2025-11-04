@@ -185,7 +185,7 @@ def change_score(amount):
         speed_value = base_speed
 
     # Win condition: reach 30 points → next level
-    elif score >= 5:
+    elif score >= 30:
         game_active = False
         level += 1
         # Increase speed based on base speed from slider
