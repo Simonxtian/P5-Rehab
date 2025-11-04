@@ -2,7 +2,7 @@ import serial
 import time
 import sys
 import glob
-from tkinter import Tk, Canvas, Button, Scale, HORIZONTAL
+from tkinter import Tk, Toplevel, Canvas, Button, Scale, HORIZONTAL
 from random import randint
 from PIL import Image, ImageTk
 
@@ -11,7 +11,7 @@ WIDTH, HEIGHT = 800, 600
 speed_value = 3
 base_speed = 3
 limit = 0
-dist = 350  # basket position
+dist = 350  # basket position (y)
 score = 0
 bar_obj = None
 score_text = None
@@ -20,30 +20,47 @@ arduino = None  # serial connection
 level = 1
 game_active = True
 
-# --- Load images ---
-bg_image = Image.open("game_background.jpg").resize((WIDTH, HEIGHT))
-blue_bird_photo = Image.open("blue_bird.png").resize((70, 50))
-red_bird_photo = Image.open("red_bird.png").resize((70, 50))
-basket_image = Image.open("basket.png").resize((80, 100))
-
 # --- Tkinter setup ---
 root = Tk()
 root.title("Catch the Bird")
 root.resizable(False, False)
 
-bg_photo = ImageTk.PhotoImage(bg_image)
-basket_photo = ImageTk.PhotoImage(basket_image)
-blue_bird_photo = ImageTk.PhotoImage(blue_bird_photo)
-red_bird_photo = ImageTk.PhotoImage(red_bird_photo)
-
 canvas = Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
+
+# --- Image loading (with safe fallbacks) ---
+def load_image(path, size, fallback="rect"):
+    try:
+        img = Image.open(path).resize(size)
+        return ImageTk.PhotoImage(img)
+    except Exception:
+        # simple fallback drawing to avoid crashes if file is missing
+        from PIL import ImageDraw
+        img = Image.new("RGBA", size, (200, 200, 200, 255))
+        draw = ImageDraw.Draw(img)
+        if fallback == "basket":
+            draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(50, 50, 50), width=3)
+            draw.text((10, size[1]//2 - 10), "Basket", fill=(0, 0, 0))
+        elif fallback == "blue":
+            draw.ellipse((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 180), width=3)
+            draw.text((10, size[1]//2 - 10), "Blue", fill=(0, 0, 180))
+        elif fallback == "red":
+            draw.ellipse((0, 0, size[0]-1, size[1]-1), outline=(180, 0, 0), width=3)
+            draw.text((15, size[1]//2 - 10), "Red", fill=(180, 0, 0))
+        else:
+            draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 0), width=2)
+        return ImageTk.PhotoImage(img)
+
+bg_photo         = load_image("game_background.jpg", (WIDTH, HEIGHT))
+basket_photo     = load_image("basket.png", (80, 100), fallback="basket")
+blue_bird_photo  = load_image("blue_bird.png", (70, 50), fallback="blue")
+red_bird_photo   = load_image("red_bird.png", (70, 50), fallback="red")
 
 # --- Arduino detection ---
 def find_arduino_port():
     """Automatically detect the Arduino serial port on any OS."""
     if sys.platform.startswith('win'):
-        ports = ['COM%s' % (i + 1) for i in range(256)]
+        ports = [f'COM{i + 1}' for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
@@ -61,38 +78,47 @@ def find_arduino_port():
     return None
 
 def connect_arduino():
-    """Try to connect to Arduino."""
+    """Try to connect to Arduino (non-blocking; flush startup backlog)."""
     global arduino
     port = find_arduino_port()
     if not port:
         print("No Arduino found. Basket will use keyboard control.")
         return None
     try:
-        arduino = serial.Serial(port, 9600, timeout=1)
-        time.sleep(2)
+        # timeout=0 makes reads non-blocking; readline() returns immediately if nothing available
+        arduino = serial.Serial(port, 9600, timeout=0)
+        time.sleep(2)  # allow board reset
+        # Clear any noise/backlog accumulated during reset
+        try:
+            arduino.reset_input_buffer()
+        except AttributeError:
+            arduino.flushInput()
         print(f"Connected to Arduino on {port}")
         return arduino
     except Exception as e:
         print(f"Could not open serial port: {e}")
+        arduino = None
         return None
-
 
 # --- Game Classes ---
 class Bird:
-    def __init__(self, canvas, x, y, color):
-        self.canvas = canvas
+    def __init__(self, canvas_obj, x, y, color):
+        self.canvas = canvas_obj
         self.color = color
         self.image = blue_bird_photo if color == "blue" else red_bird_photo
-        self.bird = canvas.create_image(x, y, image=self.image, anchor="nw")
+        self.bird = canvas_obj.create_image(x, y, image=self.image, anchor="nw")
 
     def move_bird(self):
-        global limit, score, dist, game_active
+        global limit, dist, game_active
         if not game_active:
-            return 
+            return
         offset = 15
         bird_coords = canvas.coords(self.bird)
+        if not bird_coords:
+            return
         bird_x, bird_y = bird_coords[0], bird_coords[1]
 
+        # Reached the basket (left edge)
         if bird_x <= 50:
             if dist - offset <= bird_y <= dist + 100 + offset:
                 if self.color == "blue":
@@ -105,52 +131,47 @@ class Bird:
                 canvas.delete(self.bird)
                 if self.color == "blue":
                     change_score(-1)
-                    bird_set()
-                else:
-                    bird_set()
+                bird_set()
             return
 
         limit += 1
         self.canvas.move(self.bird, -speed_value, 0)
         self.canvas.after(10, self.move_bird)
 
-
 class Basket:
-    def __init__(self, canvas, x, y):
-        self.canvas = canvas
-        self.basket = canvas.create_image(x, y, image=basket_photo, anchor="nw")
+    def __init__(self, canvas_obj, x, y):
+        self.canvas = canvas_obj
+        self.basket = canvas_obj.create_image(x, y, image=basket_photo, anchor="nw")
 
     def set_position(self, y):
         """Move basket to a specific y-coordinate."""
         global dist
-        dist = y
+        dist = int(y)
         self.canvas.coords(self.basket, 10, dist)
 
     def delete_basket(self):
         canvas.delete(self.basket)
 
-
 # --- Functions ---
 def bird_set():
-    global limit
-    limit = 0
+    """Spawn a bird at a random y, blue 70% / red 30%."""
     y_value = randint(50, HEIGHT - 100)
     color = "blue" if randint(1, 10) <= 7 else "red"
     bird = Bird(canvas, WIDTH - 80, y_value, color)
     bird.move_bird()
 
 def change_score(amount):
-    """Change score based on caught bird and apply win/lose logic."""
+    """Change score and handle win/lose logic."""
     global score, speed_value, game_active, level, base_speed
 
     if not game_active:
-        return  # ignore scoring if game over
+        return
 
     previous_score = score
     score += amount
     canvas.itemconfig(score_text, text=f"Score: {score}")
 
-    # Lose condition: score returns to 0 after start
+    # Lose condition: score returns to 0 after having been >0
     if score == 0 and previous_score != 0:
         game_active = False
         bar_obj.delete_basket()
@@ -160,37 +181,53 @@ def change_score(amount):
     elif score >= 30:
         game_active = False
         level += 1
-
-        # 🔹 Increase speed based on base speed from slider
+        # Increase speed based on base speed from slider
         speed_value = base_speed + level - 1
-
         bar_obj.delete_basket()
         score_board(f"You reached {score} points!\nNext level unlocked!\n(Level {level})")
 
-    
 def on_key_press(event):
+    global dist
     if event.keysym in ("Up", "w", "W"):
-        bar_obj.set_position(max(0, dist - 30))
+        dist = max(0, dist - 30)
+        bar_obj.set_position(dist)
     elif event.keysym in ("Down", "s", "S"):
-        bar_obj.set_position(min(HEIGHT - 120, dist + 30))
-
+        dist = min(HEIGHT - 120, dist + 30)
+        bar_obj.set_position(dist)
 
 def score_board(message="Game Over!"):
-    from tkinter import Label
-    root2 = Tk()
-    root2.title("Game Over")
-    root2.resizable(False, False)
-    canvas2 = Canvas(root2, width=400, height=300)
-    canvas2.pack()
+    # Use Toplevel instead of a second Tk root
+    top = Toplevel(root)
+    top.title("Game Over")
+    top.resizable(False, False)
+    c2 = Canvas(top, width=400, height=300)
+    c2.pack()
 
-    Label(canvas2, text=f"{message}\n\nYour score: {score}\n\n",
-          font=("Comic Sans MS", 17, "bold")).pack()
+    # Text label
+    c2.create_text(
+        200, 90,
+        text=f"{message}\n\nYour score: {score}\n\n",
+        font=("Comic Sans MS", 17, "bold"),
+        fill="black",
+        justify="center"
+    )
 
-    Button(canvas2, text="PLAY AGAIN", bg="green", fg="white", font=("Arial",16,"bold"),
-           command=lambda: [root2.destroy(), main()]).pack(pady=10)
-    Button(canvas2, text="EXIT", bg="red", fg="white", font=("Arial",16,"bold"),
-           command=lambda: [root2.destroy(), root.destroy()]).pack(pady=10)
+    # Buttons
+    def _play_again():
+        top.destroy()
+        main()
 
+    def _exit():
+        top.destroy()
+        root.destroy()
+
+    btn_play = Button(c2, text="PLAY AGAIN", bg="green", fg="white",
+                      font=("Arial", 16, "bold"), command=_play_again)
+    btn_exit = Button(c2, text="EXIT", bg="red", fg="white",
+                      font=("Arial", 16, "bold"), command=_exit)
+    # Place buttons
+    c2.create_window(200, 180, window=btn_play)
+    c2.create_window(200, 230, window=btn_exit)
 
 def start_menu():
     canvas.delete("all")
@@ -200,22 +237,23 @@ def start_menu():
                        font=("Comic Sans MS", 40, "bold"), fill="black")
 
     canvas.create_text(WIDTH // 2, 220,
-                       text="\nBlue bird = +1 point\nRed bird = -1 point\nIf you reach 0 points you lose.\nIf you reach 10 points you can increase the velocity!\nCatch blue birds, avoid red ones!",
+                       text="\nBlue bird = +1 point\nRed bird = -1 point\nIf you reach 0 points you lose.\nIf you reach 30 points you level up!\nCatch blue birds, avoid red ones!",
                        font=("Comic Sans MS", 18), fill="black", justify="center")
 
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (0 - 6):",
                        font=("Comic Sans MS", 20), fill="black")
 
-    speed_slider = Scale(canvas, from_=0, to=6, orient=HORIZONTAL, length=400, font=("Comic Sans MS", 16))
+    speed_slider = Scale(canvas, from_=0, to=6, orient=HORIZONTAL, length=400,
+                         font=("Comic Sans MS", 16))
     speed_slider.set(3)
     speed_slider.place(x=200, y=440)
     menu_widgets.append(speed_slider)
 
     play_button = Button(canvas, text="PLAY", font=("Comic Sans MS", 24, "bold"),
-                         bg="green", fg="white", command=lambda: start_game(speed_slider.get()))
+                         bg="green", fg="white",
+                         command=lambda: start_game(speed_slider.get()))
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
-
 
 def start_game(selected_speed):
     global speed_value, base_speed, level
@@ -228,32 +266,52 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
-    """Read potentiometer and move basket."""
-    if arduino and arduino.in_waiting > 0:
+    """Read potentiometer and move basket (consume backlog, use latest)."""
+    if arduino:
+        latest = None
         try:
-            str_line = arduino.readline().decode('utf-8', errors='ignore').strip()
-            if str_line:
-                angle = float(str_line)
+            # Drain all currently queued lines and keep only the newest valid numeric one
+            while True:
+                if hasattr(arduino, "in_waiting"):
+                    if arduino.in_waiting == 0:
+                        break
+                raw = arduino.readline()  # non-blocking due to timeout=0
+                if not raw:
+                    break
+                s = raw.decode('utf-8', errors='ignore').strip()
+                if not s:
+                    continue
+                try:
+                    latest = float(s)
+                except ValueError:
+                    # Ignore partial / non-numeric lines
+                    pass
+
+            if latest is not None:
+                angle = latest
 
                 # Clamp to range (safety)
                 angle = max(40, min(150, angle))
 
-                # --- Adjust for your screen and basket size ---
-                top_limit = 0                # top of the screen (y = 0)
-                bottom_limit = HEIGHT - 120  # bottom limit of the basket (120 = basket height)
+                # --- Screen mapping ---
+                top_limit = 0
+                bottom_limit = HEIGHT - 120  # basket height = 120
 
-                # Normalize the angle: 40° → 0, 150° → 1
+                # Normalize 40° → 0, 150° → 1
                 normalized = (angle - 40) / (150 - 40)
 
-                # Invert because higher angle means higher basket (top of screen)
+                # Invert so higher angle = higher (top of screen)
                 y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
 
                 # Clamp and apply
                 y_pos = max(top_limit, min(bottom_limit, y_pos))
                 bar_obj.set_position(int(y_pos))
-        except ValueError:
+
+        except Exception:
+            # Keep loop alive on serial hiccups
             pass
-    root.after(50, update_from_arduino) 
+
+    root.after(50, update_from_arduino)
 
 def main():
     global bar_obj, score, dist, score_text, game_active
@@ -274,9 +332,15 @@ def main():
     root.bind("<w>", on_key_press)
     root.bind("<s>", on_key_press)
 
+    # Clear any residual bytes before polling begins (belt & suspenders)
+    if arduino:
+        try:
+            arduino.reset_input_buffer()
+        except AttributeError:
+            arduino.flushInput()
+
     bird_set()
     root.after(100, update_from_arduino)  # start reading potentiometer
-
 
 # --- Run ---
 connect_arduino()
