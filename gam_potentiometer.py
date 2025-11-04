@@ -54,7 +54,7 @@ def load_image(path, size, fallback="rect"):
 bg_photo         = load_image("game_background.jpg", (WIDTH, HEIGHT))
 basket_photo     = load_image("basket.png", (80, 100), fallback="basket")
 blue_bird_photo  = load_image("blue_bird.png", (70, 50), fallback="blue")
-red_bird_photo   = load_image("Bomb.png", (70, 50), fallback="red")
+bomb_photo   = load_image("Bomb.png", (70, 50), fallback="red")
 
 # --- Arduino detection ---
 def find_arduino_port():
@@ -105,7 +105,7 @@ class Bird:
     def __init__(self, canvas_obj, x, y, color):
         self.canvas = canvas_obj
         self.color = color
-        self.image = blue_bird_photo if color == "blue" else red_bird_photo
+        self.image = blue_bird_photo if color == "blue" else bomb_photo
         self.bird = canvas_obj.create_image(x, y, image=self.image, anchor="nw")
 
     def move_bird(self):
