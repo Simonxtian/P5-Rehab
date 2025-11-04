@@ -54,7 +54,7 @@ def load_image(path, size, fallback="rect"):
 bg_photo         = load_image("game_background.jpg", (WIDTH, HEIGHT))
 basket_photo     = load_image("basket.png", (80, 100), fallback="basket")
 blue_bird_photo  = load_image("blue_bird.png", (70, 50), fallback="blue")
-red_bird_photo   = load_image("red_bird.png", (70, 50), fallback="red")
+red_bird_photo   = load_image("Bomb.png", (70, 50), fallback="red")
 
 # --- Arduino detection ---
 def find_arduino_port():
