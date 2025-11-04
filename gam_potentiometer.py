@@ -172,7 +172,7 @@ def change_score(amount):
     canvas.itemconfig(score_text, text=f"Score: {score}")
 
     # Lose condition: score returns to 0 after having been >0
-    if score == 0 and previous_score != 0:
+    if score == 0 and previous_score >= 0:
         game_active = False
         bar_obj.delete_basket()
         score_board("You reached 0 points again! Game Over!")
