@@ -5,6 +5,9 @@ import glob
 from tkinter import Tk, Toplevel, Canvas, Button, Scale, HORIZONTAL
 from random import randint
 from PIL import Image, ImageTk
+import json
+import os
+
 
 # --- Game constants ---
 WIDTH, HEIGHT = 800, 600
@@ -21,6 +24,10 @@ menu_widgets = []
 arduino = None  # serial connection
 level = 1
 game_active = True
+lives = 3
+Total_lives_text = None
+total_lives = 3
+
 
 # --- Tkinter setup ---
 root = Tk()
@@ -29,6 +36,35 @@ root.resizable(False, False)
 
 canvas = Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
+
+HIGHSCORE_FILE = "highscores.json"
+
+# --- Highscore handling ---
+HIGHSCORE_FILE = "highscore.json"
+
+def load_highscore():
+    """Load highscore from JSON file."""
+    if os.path.exists(HIGHSCORE_FILE):
+        try:
+            with open(HIGHSCORE_FILE, "r") as f:
+                data = json.load(f)
+                return data.get("highscore", 0)
+        except Exception:
+            return 0
+    return 0
+
+def save_highscore(score):
+    """Save highscore to JSON file."""
+    try:
+        with open(HIGHSCORE_FILE, "w") as f:
+            json.dump({"highscore": score}, f)
+    except Exception as e:
+        print("Error saving highscore:", e)
+
+
+
+highscore = load_highscore()
+
 
 # --- Image loading (with safe fallbacks) ---
 def load_image(path, size, fallback="rect"):
@@ -126,13 +162,13 @@ class Bird:
                 if self.color == "blue":
                     change_score(+1)
                 else:
-                    change_score(-1)
+                    change_lives(-1)
                 canvas.delete(self.bird)
                 bird_set()
             else:
                 canvas.delete(self.bird)
                 if self.color == "blue":
-                    change_score(-1)
+                    change_lives(-1)
                 bird_set()
             return
 
@@ -161,6 +197,26 @@ def bird_set():
     color = "blue" if randint(1, 10) <= 7 else "red"
     bird = Bird(canvas, WIDTH - 80, y_value, color)
     bird.move_bird()
+
+def change_lives(amount):
+    """Change lives and handle game over logic."""
+    global lives, game_active, Total_lives_text
+    if not game_active:
+        return
+    
+    lives += amount
+    # Only update the canvas text if the text item exists
+    if Total_lives_text is not None:
+        canvas.itemconfig(Total_lives_text, text=f"Lives: {lives}")
+
+    if lives == 0:
+        game_active = False
+        bar_obj.delete_basket()
+        score_board("No lives left! Game Over!")
+        lives = 3  # reset lives for next game
+        return
+  
+    
 
 def change_score(amount):
     """Change score and handle win/lose logic."""
@@ -319,15 +375,17 @@ def update_from_arduino():
             pass
 
     root.after(50, update_from_arduino)
-
 def main():
-    global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, game_active
+    global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, Total_lives_text, game_active
     game_active = True  # reset so birds move again
     score = 0
     dist = 350
 
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+    Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
+                                    font=("Comic Sans MS", 20, "bold"), fill="black")
 
     Total_score_text = canvas.create_text(500, 30, text=f"Total Score: {total_score}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
@@ -350,6 +408,7 @@ def main():
             arduino.flushInput()
 
     bird_set()
+    root.after(100, update_from_arduino)  # start reading potentiometer
     root.after(100, update_from_arduino)  # start reading potentiometer
 
 # --- Run ---
