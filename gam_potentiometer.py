@@ -13,7 +13,9 @@ base_speed = 3
 limit = 0
 dist = 350  # basket position (y)
 score = 0
+total_score = 0
 bar_obj = None
+Total_score_text = None
 score_text = None
 menu_widgets = []
 arduino = None  # serial connection
@@ -162,29 +164,34 @@ def bird_set():
 
 def change_score(amount):
     """Change score and handle win/lose logic."""
-    global score, speed_value, game_active, level, base_speed
+    global score, total_score, speed_value, game_active, level, base_speed
 
     if not game_active:
         return
 
     previous_score = score
     score += amount
-    canvas.itemconfig(score_text, text=f"Score: {score}")
+    total_score += amount
+    canvas.itemconfig(Level_score_text, text=f"Level Score: {score}")
+    canvas.itemconfig(Total_score_text, text=f"Total Score: {total_score}")
 
     # Lose condition: score returns to 0 after having been >0
     if score == 0 and previous_score >= 0:
         game_active = False
         bar_obj.delete_basket()
         score_board("You reached 0 points again! Game Over!")
+        total_score = 0
+        level = 1
+        speed_value = base_speed
 
     # Win condition: reach 30 points → next level
-    elif score >= 30:
+    elif score >= 5:
         game_active = False
         level += 1
         # Increase speed based on base speed from slider
         speed_value = base_speed + level - 1
         bar_obj.delete_basket()
-        score_board(f"You reached {score} points!\nNext level unlocked!\n(Level {level})")
+        score_board(f"You reached {total_score} points!\nNext level unlocked!\n(Level {level})")
 
 def on_key_press(event):
     global dist
@@ -206,7 +213,7 @@ def score_board(message="Game Over!"):
     # Text label
     c2.create_text(
         200, 90,
-        text=f"{message}\n\nYour score: {score}\n\n",
+        text=f"{message}\n\nYour score: {total_score}\n\n",
         font=("Comic Sans MS", 17, "bold"),
         fill="black",
         justify="center"
@@ -314,7 +321,7 @@ def update_from_arduino():
     root.after(50, update_from_arduino)
 
 def main():
-    global bar_obj, score, dist, score_text, game_active
+    global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, game_active
     game_active = True  # reset so birds move again
     score = 0
     dist = 350
@@ -322,7 +329,10 @@ def main():
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
-    score_text = canvas.create_text(700, 30, text=f"Score: {score}",
+    Total_score_text = canvas.create_text(500, 30, text=f"Total Score: {total_score}",
+                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+
+    Level_score_text = canvas.create_text(700, 30, text=f"Level Score: {score}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
     bar_obj = Basket(canvas, 10, dist)
