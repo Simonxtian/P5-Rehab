@@ -37,27 +37,44 @@ root.resizable(False, False)
 canvas = Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
-HIGHSCORE_FILE = "highscores.json"
-
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore.json"
 
 def load_highscore():
-    """Load highscore from JSON file."""
-    if os.path.exists(HIGHSCORE_FILE):
-        try:
-            with open(HIGHSCORE_FILE, "r") as f:
-                data = json.load(f)
-                return data.get("highscore", 0)
-        except Exception:
+    """Load highscore from a JSON file located next to this script; create if missing."""
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+        # If file doesn't exist, create it with default highscore 0
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                json.dump({"highscore": 0}, f)
             return 0
-    return 0
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            return int(data.get("highscore", 0))
+    except Exception as e:
+        # Log and return 0 on any error to keep game running
+        print("Error loading highscore:", e)
+        return 0
 
 def save_highscore(score):
-    """Save highscore to JSON file."""
+    """Save highscore to a JSON file located next to this script using an atomic replace."""
     try:
-        with open(HIGHSCORE_FILE, "w") as f:
-            json.dump({"highscore": score}, f)
+        file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+        # Ensure directory exists (usually it's the script dir, but be safe)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = file_path + ".tmp"
+        # Write to a temp file and atomically replace the target to avoid partial writes
+        with open(tmp_path, "w") as f:
+            json.dump({"highscore": int(score)}, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                # os.fsync may not be available on some platforms or file descriptors
+                pass
+        os.replace(tmp_path, file_path)
     except Exception as e:
         print("Error saving highscore:", e)
 
@@ -213,6 +230,8 @@ def change_lives(amount):
         game_active = False
         bar_obj.delete_basket()
         score_board("No lives left! Game Over!")
+        save_highscore(total_score)
+        total_score = 0
         lives = 3  # reset lives for next game
         return
   
@@ -376,13 +395,15 @@ def update_from_arduino():
 
     root.after(50, update_from_arduino)
 def main():
-    global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, Total_lives_text, game_active
+    global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, Total_lives_text, game_active, highscore
     game_active = True  # reset so birds move again
     score = 0
     dist = 350
 
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
+
+    load_highscore()  
 
     Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
@@ -391,6 +412,9 @@ def main():
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
     Level_score_text = canvas.create_text(700, 30, text=f"Level Score: {score}",
+                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+    
+    Highscore_text = canvas.create_text(300, 30, text=f"Highscore: {highscore}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
     bar_obj = Basket(canvas, 10, dist)
