@@ -9,6 +9,7 @@ from PIL import Image, ImageTk
 # --- Game constants ---
 WIDTH, HEIGHT = 800, 600
 speed_value = 3
+base_speed = 3
 limit = 0
 dist = 350  # basket position
 score = 0
@@ -16,7 +17,8 @@ bar_obj = None
 score_text = None
 menu_widgets = []
 arduino = None  # serial connection
-
+level = 1
+game_active = True
 
 # --- Load images ---
 bg_image = Image.open("game_background.jpg").resize((WIDTH, HEIGHT))
@@ -84,7 +86,9 @@ class Bird:
         self.bird = canvas.create_image(x, y, image=self.image, anchor="nw")
 
     def move_bird(self):
-        global limit, score, dist
+        global limit, score, dist, game_active
+        if not game_active:
+            return 
         offset = 15
         bird_coords = canvas.coords(self.bird)
         bird_x, bird_y = bird_coords[0], bird_coords[1]
@@ -93,18 +97,15 @@ class Bird:
             if dist - offset <= bird_y <= dist + 100 + offset:
                 if self.color == "blue":
                     change_score(+1)
-                    canvas.delete(self.bird)
-                    bird_set()
                 else:
                     change_score(-1)
-                    canvas.delete(self.bird)
-                    bar_obj.delete_basket()
-                    score_board("You caught a red bird! ")
+                canvas.delete(self.bird)
+                bird_set()
             else:
                 canvas.delete(self.bird)
                 if self.color == "blue":
-                    bar_obj.delete_basket()
-                    score_board("You missed a blue bird! ")
+                    change_score(-1)
+                    bird_set()
                 else:
                     bird_set()
             return
@@ -138,13 +139,35 @@ def bird_set():
     bird = Bird(canvas, WIDTH - 80, y_value, color)
     bird.move_bird()
 
-
 def change_score(amount):
-    global score
+    """Change score based on caught bird and apply win/lose logic."""
+    global score, speed_value, game_active, level, base_speed
+
+    if not game_active:
+        return  # ignore scoring if game over
+
+    previous_score = score
     score += amount
     canvas.itemconfig(score_text, text=f"Score: {score}")
 
+    # Lose condition: score returns to 0 after start
+    if score == 0 and previous_score != 0:
+        game_active = False
+        bar_obj.delete_basket()
+        score_board("You reached 0 points again! Game Over!")
 
+    # Win condition: reach 30 points → next level
+    elif score >= 30:
+        game_active = False
+        level += 1
+
+        # 🔹 Increase speed based on base speed from slider
+        speed_value = base_speed + level - 1
+
+        bar_obj.delete_basket()
+        score_board(f"You reached {score} points!\nNext level unlocked!\n(Level {level})")
+
+    
 def on_key_press(event):
     if event.keysym in ("Up", "w", "W"):
         bar_obj.set_position(max(0, dist - 30))
@@ -177,7 +200,7 @@ def start_menu():
                        font=("Comic Sans MS", 40, "bold"), fill="black")
 
     canvas.create_text(WIDTH // 2, 220,
-                       text="\nBlue bird = +1 point\nRed bird = -1 point and ends game\n\nCatch blue birds, avoid red ones!",
+                       text="\nBlue bird = +1 point\nRed bird = -1 point\nIf you reach 0 points you lose.\nIf you reach 10 points you can increase the velocity!\nCatch blue birds, avoid red ones!",
                        font=("Comic Sans MS", 18), fill="black", justify="center")
 
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (0 - 6):",
@@ -195,13 +218,14 @@ def start_menu():
 
 
 def start_game(selected_speed):
-    global speed_value
-    speed_value = selected_speed
+    global speed_value, base_speed, level
+    base_speed = selected_speed
+    speed_value = base_speed
+    level = 1
     for widget in menu_widgets:
         widget.destroy()
     menu_widgets.clear()
     main()
-
 
 def update_from_arduino():
     """Read potentiometer and move basket."""
@@ -210,16 +234,30 @@ def update_from_arduino():
             str_line = arduino.readline().decode('utf-8', errors='ignore').strip()
             if str_line:
                 angle = float(str_line)
-                angle = max(40, min(150, angle))  # limit range
-                normalized = (angle - 40) / (150 - 40)  # normalize to 0–1
-                y_pos = HEIGHT - (normalized * (HEIGHT - 120))  # map to screen height
-                bar_obj.set_position(int(y_pos))  # move basket
+
+                # Clamp to range (safety)
+                angle = max(40, min(150, angle))
+
+                # --- Adjust for your screen and basket size ---
+                top_limit = 0                # top of the screen (y = 0)
+                bottom_limit = HEIGHT - 120  # bottom limit of the basket (120 = basket height)
+
+                # Normalize the angle: 40° → 0, 150° → 1
+                normalized = (angle - 40) / (150 - 40)
+
+                # Invert because higher angle means higher basket (top of screen)
+                y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
+
+                # Clamp and apply
+                y_pos = max(top_limit, min(bottom_limit, y_pos))
+                bar_obj.set_position(int(y_pos))
         except ValueError:
             pass
     root.after(50, update_from_arduino) 
 
 def main():
-    global bar_obj, score, dist, score_text
+    global bar_obj, score, dist, score_text, game_active
+    game_active = True  # reset so birds move again
     score = 0
     dist = 350
 
