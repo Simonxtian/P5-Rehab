@@ -317,9 +317,9 @@ def start_menu():
 
     canvas.create_text(WIDTH // 2, 100, text=" Catch the Bird Game ",
                        font=("Comic Sans MS", 40, "bold"), fill="black")
-
+#The player has three lives and they lose a life, if they are hit by bombs, or if they miss a bird
     canvas.create_text(WIDTH // 2, 220,
-                       text="\nBlue bird = +1 point\nRed bird = -1 point\nIf you reach 0 points you lose.\nIf you reach 30 points you level up!\nCatch blue birds, avoid red ones!",
+                       text="\n Blue bird = +1 point\nHit the bomb or miss a bird = -1 life\nYou have 3 lives\nIf you reach 30 points you level up!\nCatch blue birds, avoid bombs!",
                        font=("Comic Sans MS", 18), fill="black", justify="center")
 
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (0 - 6):",
