@@ -41,6 +41,7 @@ canvas.pack()
 HIGHSCORE_FILE = "highscore.json"
 
 def load_highscore():
+    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore.json"))
     """Load highscore from a JSON file located next to this script; create if missing."""
     try:
         file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
@@ -50,33 +51,39 @@ def load_highscore():
                 json.dump({"highscore": 0}, f)
             return 0
 
-        with open(file_path, "r") as f:
+        with open(file_path, "r+") as f:
             data = json.load(f)
             return int(data.get("highscore", 0))
     except Exception as e:
         # Log and return 0 on any error to keep game running
         print("Error loading highscore:", e)
         return 0
+    
+
 
 def save_highscore(score):
-    """Save highscore to a JSON file located next to this script using an atomic replace."""
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
-        # Ensure directory exists (usually it's the script dir, but be safe)
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        tmp_path = file_path + ".tmp"
-        # Write to a temp file and atomically replace the target to avoid partial writes
-        with open(tmp_path, "w") as f:
-            json.dump({"highscore": int(score)}, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                # os.fsync may not be available on some platforms or file descriptors
-                pass
-        os.replace(tmp_path, file_path)
-    except Exception as e:
-        print("Error saving highscore:", e)
+    if score >= highscore:
+        """Save highscore to a JSON file located next to this script using an atomic replace."""
+        try:
+            file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+            # Ensure directory exists (usually it's the script dir, but be safe)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            tmp_path = file_path + ".tmp"
+            # Write to a temp file and atomically replace the target to avoid partial writes
+            with open(tmp_path, "w") as f:
+                json.dump({"highscore": int(score)}, f)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except Exception:
+                    # os.fsync may not be available on some platforms or file descriptors
+                    pass
+            os.replace(tmp_path, file_path)
+        except Exception as e:
+            print("Error saving highscore:", e)
+    else:
+        # No update needed
+        pass
 
 
 
@@ -217,7 +224,7 @@ def bird_set():
 
 def change_lives(amount):
     """Change lives and handle game over logic."""
-    global lives, game_active, Total_lives_text
+    global lives, game_active, Total_lives_text, total_score
     if not game_active:
         return
     
@@ -282,13 +289,13 @@ def score_board(message="Game Over!"):
     top = Toplevel(root)
     top.title("Game Over")
     top.resizable(False, False)
-    c2 = Canvas(top, width=400, height=300)
+    c2 = Canvas(top, width=400, height=350)
     c2.pack()
 
-    # Text label
+    # Text label and add a highscore line
     c2.create_text(
-        200, 90,
-        text=f"{message}\n\nYour score: {total_score}\n\n",
+        200, 120,
+        text=f"{message}\n\nYour score: {total_score}\n\nHighscore: {highscore}\n\n",
         font=("Comic Sans MS", 17, "bold"),
         fill="black",
         justify="center"
@@ -308,8 +315,8 @@ def score_board(message="Game Over!"):
     btn_exit = Button(c2, text="EXIT", bg="red", fg="white",
                       font=("Arial", 16, "bold"), command=_exit)
     # Place buttons
-    c2.create_window(200, 180, window=btn_play)
-    c2.create_window(200, 230, window=btn_exit)
+    c2.create_window(200, 220, window=btn_play)
+    c2.create_window(200, 280, window=btn_exit)
 
 def start_menu():
     canvas.delete("all")
@@ -403,7 +410,7 @@ def main():
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
-    load_highscore()  
+    highscore = load_highscore()
 
     Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
