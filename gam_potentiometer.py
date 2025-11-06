@@ -415,13 +415,13 @@ def main():
     Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
-    Total_score_text = canvas.create_text(500, 30, text=f"Total Score: {total_score}",
+    Total_score_text = canvas.create_text(480, 30, text=f"Total Score: {total_score}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
     Level_score_text = canvas.create_text(700, 30, text=f"Level Score: {score}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
     
-    Highscore_text = canvas.create_text(300, 30, text=f"Highscore: {highscore}",
+    Highscore_text = canvas.create_text(280, 30, text=f"Highscore: {highscore}",
                                     font=("Comic Sans MS", 20, "bold"), fill="black")
 
     bar_obj = Basket(canvas, 10, dist)
