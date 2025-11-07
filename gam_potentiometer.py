@@ -89,7 +89,6 @@ def save_highscore(score):
 
 highscore = load_highscore()
 
-
 # --- Image loading (with safe fallbacks) ---
 def load_image(path, size, fallback="rect"):
     try:
