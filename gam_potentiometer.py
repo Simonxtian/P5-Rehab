@@ -225,7 +225,7 @@ def bird_set():
 
 def change_lives(amount):
     """Change lives and handle game over logic."""
-    global lives, game_active, Total_lives_text, total_score
+    global lives, game_active, Total_lives_text, total_score, speed_value
     if not game_active:
         return
     
@@ -241,6 +241,7 @@ def change_lives(amount):
         save_highscore(total_score)
         total_score = 0
         lives = 3  # reset lives for next game
+        speed_value = base_speed
         return
   
     
