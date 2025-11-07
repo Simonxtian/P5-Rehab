@@ -127,7 +127,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         raise EnvironmentError('Unsupported platform')
 
@@ -362,17 +362,21 @@ def update_from_arduino():
         try:
             # Drain all currently queued lines and keep only the newest valid numeric one
             while True:
-                if hasattr(arduino, "in_waiting"):
-                    if arduino.in_waiting == 0:
-                        break
+                #if hasattr(arduino, "in_waiting"):
+                    #if arduino.in_waiting == 0:
+                 #       print("bad bad nightmare")
+                  #      break
                 raw = arduino.readline()  # non-blocking due to timeout=0
+                #print(raw)
                 if not raw:
                     break
                 s = raw.decode('utf-8', errors='ignore').strip()
+                print(s)
+                Num = s.split(": ")
                 if not s:
                     continue
                 try:
-                    latest = float(s)
+                    latest = float(Num[1])
                 except ValueError:
                     # Ignore partial / non-numeric lines
                     pass
