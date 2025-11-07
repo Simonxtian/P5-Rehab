@@ -11,14 +11,14 @@ void setup() {
 
 void loop() {
   int sensorValue = analogRead(potPin);
-  voltage = sensorValue * (5.0 / 1023.0);
+  //voltage = sensorValue * (5.0 / 1023.0);
 
   // Constrain voltage within your usable range
-  voltage = constrain(voltage, minV, maxV);
+  // voltage = constrain(voltage, minV, maxV);
 
   // Map voltage to 40°–150°
-  angle = 40 + (voltage - minV) * (110.0 / (maxV - minV));
+  // angle = 40 + (voltage - minV) * (110.0 / (maxV - minV));
 
-  Serial.println(angle);
+  Serial.println(sensorValue);
   delay(50);
 }
