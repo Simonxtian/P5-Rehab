@@ -27,6 +27,8 @@ game_active = True
 lives = 3
 Total_lives_text = None
 total_lives = 3
+min_Val = 320 # Min value from potentiometer
+max_Val = 700 # Max value from potentiometer
 
 
 # --- Tkinter setup ---
