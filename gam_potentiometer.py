@@ -371,12 +371,17 @@ def update_from_arduino():
                 if not raw:
                     break
                 s = raw.decode('utf-8', errors='ignore').strip()
-                print(s)
+                #print(s)
                 Num = s.split(": ")
                 if not s:
                     continue
                 try:
-                    latest = float(Num[1])
+                    ArduVal = float(Num[1])
+                    if ArduVal > 1500.0:
+                        print("ButtonPress")
+                    elif ArduVal < 1500.0:
+                        latest = float(Num[1])
+                        print(latest)
                 except ValueError:
                     # Ignore partial / non-numeric lines
                     pass
