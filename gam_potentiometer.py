@@ -27,8 +27,8 @@ game_active = True
 lives = 3
 Total_lives_text = None
 total_lives = 3
-min_Val = 320 # Min value from potentiometer
-max_Val = 700 # Max value from potentiometer
+min_Val = 240 # Min value from potentiometer
+max_Val = 640 # Max value from potentiometer
 
 
 # --- Tkinter setup ---
@@ -379,6 +379,22 @@ def update_from_arduino():
 
             if latest is not None:
                 angle = latest
+
+                # NEW MAPPING LOGIC --- WAITING FOR TESTING ---
+                
+                # # Clamp to safety range
+                # angle = max(min_Val, min(max_Val, angle))
+
+                # # Normalize 0–1 range
+                # normalized = (angle - min_Val) / (max_Val - min_Val)
+
+                # # --- Screen mapping ---
+                # top_limit = 0
+                # bottom_limit = HEIGHT - 120  # basket height
+                # y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
+                # y_pos = max(top_limit, min(bottom_limit, y_pos))
+                # bar_obj.set_position(int(y_pos))
+
 
                 # Clamp to range (safety)
                 angle = max(40, min(150, angle))
