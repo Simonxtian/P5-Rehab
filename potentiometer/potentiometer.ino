@@ -1,24 +1,47 @@
-int potPin = A0;
-float voltage = 0;
-float angle = 0;
 
-const float minV = 0.4;   // adjust to your measured minimum
-const float maxV = 4.7;   // adjust to your measured maximum
+const int potPin = A0;  // Analog pin where the potentiometer is connected
+int potValue = 0;       // Variable to store the potentiometer value
+float angle = 0.0;
+unsigned long Current = 0;
+
+int OuterUpValue = 85;
+int UpValue = 110;
+int DownValue = 130;
+int OuterDownValue = 155;
+
+int ButtonPin = 5;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(9600);  // Initialize Serial communication at 9600 baud
+  Serial.println("Potentiometer Reader Started");
+  pinMode(ButtonPin, INPUT_PULLUP);
+  Current = millis();
+}
+
+void ReadPot() {
+  if (Current + 50 < millis()){
+    potValue = analogRead(potPin);  // Read analog value (0 to 1023)
+
+    //angle = (270.0 / 1023.0) * potValue;  //map(potValue, 0, 1023, 0.0, 300.0);
+    angle = potValue;
+    // Print values to Serial Monitor
+    Serial.print("Pot: ");
+    Serial.println(angle);
+    Current = millis();
+  }
 }
 
 void loop() {
-  int sensorValue = analogRead(potPin);
-  voltage = sensorValue * (5.0 / 1023.0);
-
-  // Constrain voltage within your usable range
-  voltage = constrain(voltage, minV, maxV);
-
-  // Map voltage to 40°–150°
-  angle = 40 + (voltage - minV) * (110.0 / (maxV - minV));
-
-  Serial.println(angle);
-  delay(50);
+  ReadPot();
+  int Button = digitalRead(ButtonPin);
+  if (Button < 1) {
+    Serial.print("Button: ");
+    Serial.println(2001);
+    while (Button < 1) {
+      Button = digitalRead(ButtonPin);
+      ReadPot();
+    }
+    Serial.print("Button: ");
+    Serial.println(2000);
+  }
 }

@@ -398,8 +398,6 @@ def update_from_arduino():
                 # y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
                 # y_pos = max(top_limit, min(bottom_limit, y_pos))
                 # bar_obj.set_position(int(y_pos))
-
-
                 # Clamp to range (safety)
                 angle = max(40, min(150, angle))
 
