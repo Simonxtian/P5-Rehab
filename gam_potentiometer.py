@@ -27,6 +27,7 @@ game_active = True
 lives = 3
 Total_lives_text = None
 total_lives = 3
+CurrentTime = 0
 
 
 # --- Tkinter setup ---
@@ -126,7 +127,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         raise EnvironmentError('Unsupported platform')
 
@@ -148,7 +149,7 @@ def connect_arduino():
         return None
     try:
         # timeout=0 makes reads non-blocking; readline() returns immediately if nothing available
-        arduino = serial.Serial(port, 9600, timeout=0)
+        arduino = serial.Serial(port, 9600, timeout=1)
         time.sleep(2)  # allow board reset
         # Clear any noise/backlog accumulated during reset
         try:
@@ -355,51 +356,38 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
-    """Read potentiometer and move basket (consume backlog, use latest)."""
+    """Read potentiometer angle from Arduino and move basket accordingly."""
+    global CurrentTime
+
     if arduino:
-        latest = None
         try:
-            # Drain all currently queued lines and keep only the newest valid numeric one
-            while True:
-                if hasattr(arduino, "in_waiting"):
-                    if arduino.in_waiting == 0:
-                        break
-                raw = arduino.readline()  # non-blocking due to timeout=0
+            latest = None
+
+            # Read all available lines, keep only the last valid one
+            while arduino.in_waiting:
+                raw = arduino.readline().decode('utf-8', errors='ignore').strip()
                 if not raw:
-                    break
-                s = raw.decode('utf-8', errors='ignore').strip()
-                if not s:
                     continue
-                try:
-                    latest = float(s)
-                except ValueError:
-                    # Ignore partial / non-numeric lines
-                    pass
+                if ": " in raw:
+                    try:
+                        angle = float(raw.split(": ")[1])
+                        latest = angle
+                    except ValueError:
+                        continue
 
+            # If we got a valid angle, map it to screen position
             if latest is not None:
-                angle = latest
-
-                # Clamp to range (safety)
-                angle = max(40, min(150, angle))
-
-                # --- Screen mapping ---
+                angle = max(40, min(150, latest))
                 top_limit = 0
-                bottom_limit = HEIGHT - 120  # basket height = 120
-
-                # Normalize 40° → 0, 150° → 1
+                bottom_limit = HEIGHT - 120
                 normalized = (angle - 40) / (150 - 40)
-
-                # Invert so higher angle = higher (top of screen)
                 y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
-
-                # Clamp and apply
-                y_pos = max(top_limit, min(bottom_limit, y_pos))
                 bar_obj.set_position(int(y_pos))
 
-        except Exception:
-            # Keep loop alive on serial hiccups
-            pass
+        except Exception as e:
+            print("Serial read error:", e)
 
+    # Schedule again (20x per second is enough)
     root.after(50, update_from_arduino)
 def main():
     global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, Total_lives_text, game_active, highscore
@@ -439,7 +427,6 @@ def main():
             arduino.flushInput()
 
     bird_set()
-    root.after(100, update_from_arduino)  # start reading potentiometer
     root.after(100, update_from_arduino)  # start reading potentiometer
 
 # --- Run ---
