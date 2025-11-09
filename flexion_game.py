@@ -85,6 +85,13 @@ class FishingGame:
             "trash": load_image("trash.png", (60,60)),
         }
 
+        self.canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#80bfff", outline="")
+
+        #self.canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="black", outline="")
+
+        
+        self.canvas.create_image(0, 0, image=self.bg_img, anchor=NW)
+
         self.rod_x = 100
         self.rod_dir = 1
         self.rope_len = 0
@@ -96,8 +103,14 @@ class FishingGame:
         self.objects = []
 
         self.canvas.create_image(0,0, image=self.bg_img, anchor=NW)
-        self.rod_item = self.canvas.create_image(self.rod_x, ROD_Y, image=self.rod_img, anchor=NW)
+        # Draw the rope first so we can lift it later
         self.rope_item = self.canvas.create_line(0,0,0,0, width=3, fill="white")
+
+        # Draw the rod image
+        self.rod_item = self.canvas.create_image(self.rod_x, ROD_Y, image=self.rod_img, anchor=NW)
+
+        # Ensure rope stays on top visually
+        self.canvas.tag_raise(self.rope_item, self.rod_item)
         self.score_text = self.canvas.create_text(80, 24, text=f"Score: {self.score}", font=("Arial",16), fill="black")
 
         # Buttons updated to use the new toggle function
@@ -105,17 +118,12 @@ class FishingGame:
         self.stop_btn.pack(side="left", padx=10)
         self.reset_btn = Button(root, text="RESET", command=self.reset_round)
         self.reset_btn.pack(side="left", padx=10)
-        # self.sim_btn is removed
 
-        # New Keyboard Bindings
         root.bind("<space>", lambda e: self.toggle_sweep())
         root.bind("<w>", self.adjust_rope)
         root.bind("<s>", self.adjust_rope)
         root.bind("<Up>", self.adjust_rope)
         root.bind("<Down>", self.adjust_rope)
-        
-        # Remove old 'f' binding
-        # root.bind("f", lambda e: self.simulate_flex())
 
         self.spawn_objects()
         self.root.after(UPDATE_MS, self.update)
@@ -153,12 +161,6 @@ class FishingGame:
         elif self.stopped and not self.rope_extending:
             self.sweeping = True
             self.stopped = False
-
-    # Renamed/Replaced the original stop_rod() function
-    # def stop_rod(self):
-    #     if self.sweeping:
-    #         self.sweeping = False
-    #         self.stopped = True
 
     def reset_round(self):
         self.sweeping = True
@@ -226,9 +228,8 @@ class FishingGame:
         """Approximate hook position relative to image"""
         bx,by,_,_ = self.canvas.bbox(self.rod_item)
         w,h = self.rod_img.width(), self.rod_img.height()
-        # NEW OFFSETS for 90x90 image
-        tip_x = bx + w - 10
-        tip_y = by + h - 15
+        tip_x = bx + w - 8
+        tip_y = by + h - 86
         return tip_x, tip_y
 
     def update_rope(self):
