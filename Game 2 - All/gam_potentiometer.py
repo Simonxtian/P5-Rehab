@@ -359,6 +359,7 @@ def update_from_arduino():
     """Read potentiometer and move basket (consume backlog, use latest)."""
     if arduino:
         latest = None
+        print("Latest = 0")
         try:
             # Drain all currently queued lines and keep only the newest valid numeric one
             while True:
@@ -366,33 +367,39 @@ def update_from_arduino():
                  #   if arduino.in_waiting == 0:
                   #      break
                 raw = arduino.readline()  # non-blocking due to timeout=0
+                print("Ardu Read")
+                #print(raw)
                 if not raw:
                     break
                 s = raw.decode('utf-8', errors='ignore').strip()
+                print(s)
                 if not s:
                     continue
-                Number = float(s.split(": "))
-                if Number < 1500:
+                Number = s.split(": ")
+                Number[1] = float(Number[1])
+                print(Number[1])
+                if Number[1] < 1500:
+                    print("Pot Info")
                     try:
-                        latest = Number
+                        latest = Number[1]
                     except ValueError:
                     # Ignore partial / non-numeric lines
                         pass
-                if Number > 1500:
+                if Number[1] > 1500:
                     print("Buttonpress")
 
             if latest is not None:
                 angle = latest
 
                 # Clamp to range (safety)
-                angle = max(40, min(150, angle))
+                angle = max(0, min(1023, angle))
 
                 # --- Screen mapping ---
                 top_limit = 0
                 bottom_limit = HEIGHT - 120  # basket height = 120
 
                 # Normalize 40° → 0, 150° → 1
-                normalized = (angle - 40) / (150 - 40)
+                normalized = (angle - 0) / (1023 - 0)
 
                 # Invert so higher angle = higher (top of screen)
                 y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
