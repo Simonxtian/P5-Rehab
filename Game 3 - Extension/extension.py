@@ -1,372 +1,410 @@
-"""
-Wrist-flexion jump trainer game (Tkinter).
-- Uses an Arduino potentiometer (serial float values, e.g. "72.3\n")
-- Calibration for min/max wrist positions saved to calibration.json
-- Keyboard fallback: Space / Up to jump, Left/Right to move horizontally
-"""
-
-import serial
-import sys
-import glob
-import time
-import json
-import os
+import os, sys, time, glob, serial
 from random import randint, choice
-from tkinter import Tk, Canvas, Button, Label, Toplevel, StringVar
-from tkinter import NW
-from PIL import Image, ImageTk
+from tkinter import Tk, Canvas, Button, NW, Toplevel
+from PIL import Image, ImageTk, ImageDraw
+import math
 
-# ---------- Config ----------
-WIDTH, HEIGHT = 600, 700  # Portrait mode
-PLAYER_X = WIDTH//2 - 35  # fixed horizontal position
-GROUND_Y = HEIGHT - 100
-GRAVITY = 1.0
-BASE_JUMP_VEL = -12
-MAX_EXTRA_JUMP = -18
-OBSTACLE_SPEED_BASE = 4
-OBSTACLE_SPAWN_MS = 1500
-CALIB_FILE = "calibration.json"
-HIGHSCORE_FILE = "highscore.json"
-SERIAL_BAUD = 9600
-SERIAL_TIMEOUT = 0
-# ---------- Globals ----------
-root = Tk()
-root.title("Wrist Jump Trainer")
-canvas = Canvas(root, width=WIDTH, height=HEIGHT)
-canvas.pack()
-serial_conn = None
-calibration = {"min": 40.0, "max": 150.0}  # defaults if no calibration
-player = None
-player_image = None
-bg_image = None
-obstacles = []
-score = 0
-lives = 3
-game_running = False
-highscore = 0
-last_spawn = 0
-speed_multiplier = 0
-angle_latest = None  # latest numeric value read from serial
+# --- CONFIG ---
+# Invertido a vertical
+HEIGHT, WIDTH = 800, 600
+STAR_Y = 50 # Posición Y del objetivo
+PLATFORM_COUNT = 12 # Más plataformas
+PLATFORM_WIDTH, PLATFORM_HEIGHT = 180, 30 # Plataformas más grandes
+PLATFORM_MIN_SPEED, PLATFORM_MAX_SPEED = 1.5, 4.0 # Plataformas MÓVILES horizontalmente
+JUMP_HEIGHT = (HEIGHT - STAR_Y) / (PLATFORM_COUNT + 1) # Distancia a saltar
+JUMP_SPEED = 40 # Velocidad del ascenso por tick (pixels/update)
+UPDATE_MS = 25
+ANGLE_MIN, ANGLE_MAX = 40.0, 150.0
+ARDUINO_BAUD = 9600
+ROCKET_SIZE = (50, 70)
 
-# ---------- Utility: load/save files ----------
-def safe_load_json(path, default):
+# --- IMAGE LOADER (Mantenido) ---
+def load_image(path, size=None):
     try:
-        with open(path, "r") as f:
-            return json.load(f)
-    except Exception:
-        return default
-
-def safe_save_json(path, data):
-    tmp = path + ".tmp"
-    try:
-        with open(tmp, "w") as f:
-            json.dump(data, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                pass
-        os.replace(tmp, path)
-    except Exception as e:
-        print("Could not save", path, e)
-
-# load calibration & highscore
-calibration = safe_load_json(CALIB_FILE, calibration)
-highscore = safe_load_json(HIGHSCORE_FILE, {"highscore": 0}).get("highscore", 0)
-
-# ---------- Serial helper ----------
-def find_arduino_port():
-    if sys.platform.startswith("win"):
-        ports = [f"COM{i+1}" for i in range(256)]
-    elif sys.platform.startswith("linux") or sys.platform.startswith("cygwin"):
-        ports = glob.glob("/dev/tty[A-Za-z]*")
-    elif sys.platform.startswith("darwin"):
-        ports = glob.glob("/dev/tty.*")
-    else:
-        return None
-    for p in ports:
-        try:
-            s = serial.Serial(p)
-            s.close()
-            return p
-        except Exception:
-            pass
-    return None
-
-def connect_serial():
-    global serial_conn
-    try:
-        port = find_arduino_port()
-        if not port:
-            print("No Arduino detected.")
-            return None
-        serial_conn = serial.Serial(port, SERIAL_BAUD, timeout=SERIAL_TIMEOUT)
-        time.sleep(2)
-        try:
-            serial_conn.reset_input_buffer()
-        except Exception:
-            pass
-        print("Connected to", port)
-        return serial_conn
-    except Exception as e:
-        print("Could not open serial:", e)
-        serial_conn = None
-        return None
-
-# ---------- Image helpers (safe fallbacks) ----------
-def load_or_placeholder(path, size, text):
-    try:
-        img = Image.open(path).resize(size)
+        img = Image.open(path).convert("RGBA")
+        resample_filter = Image.LANCZOS if hasattr(Image, 'LANCZOS') else Image.ANTIALIAS
+        if size:
+            img = img.resize(size, resample_filter)
         return ImageTk.PhotoImage(img)
     except Exception:
-        from PIL import ImageDraw, ImageFont
-        im = Image.new("RGBA", size, (230,230,230,255))
-        draw = ImageDraw.Draw(im)
-        draw.rectangle((1,1,size[0]-2,size[1]-2), outline=(100,100,100))
-        draw.text((10, size[1]//2 - 10), text, fill=(0,0,0))
-        return ImageTk.PhotoImage(im)
+        w, h = size if size else (50, 50)
+        img = Image.new("RGBA", (w, h), (200, 200, 200, 255))
+        d = ImageDraw.Draw(img)
+        d.rectangle((0, 0, w - 1, h - 1), outline=(0, 0, 0))
+        d.text((10, h // 2 - 8), "miss", fill=(0, 0, 0))
+        return ImageTk.PhotoImage(img)
 
-player_image = load_or_placeholder(r"Game 3 - Extension\rocket.png", (70,70), "You")
-bg_image = load_or_placeholder(r"Game 3 - Extension\space.png", (WIDTH, HEIGHT), "Background")
-canvas.create_image(0,0, image=bg_image, anchor=NW)
-
-# ---------- Player class ----------
-class Player:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        self.vy = 0
-        self.width = 70
-        self.height = 70
-        self.on_ground = True
-        self.canvas_id = canvas.create_image(self.x, self.y, image=player_image, anchor=NW)
-
-    def update(self):
-        self.vy += GRAVITY
-        self.y += self.vy
-        if self.y >= GROUND_Y - self.height:
-            self.y = GROUND_Y - self.height
-            self.vy = 0
-            self.on_ground = True
-        else:
-            self.on_ground = False
-        canvas.coords(self.canvas_id, self.x, int(self.y))
-
-    def set_y_from_angle(self, normalized):
-        # Map wrist flexion directly to vertical position
-        # normalized=0 → bottom; normalized=1 → top
-        top_limit = 50
-        bottom_limit = GROUND_Y - self.height
-        self.y = bottom_limit - normalized * (bottom_limit - top_limit)
-        canvas.coords(self.canvas_id, self.x, int(self.y))
-
-    def jump_keyboard(self):
-        if self.on_ground:
-            self.vy = BASE_JUMP_VEL
-            self.on_ground = False
-    
-# ---------- Obstacles ----------
-class Obstacle:
-    def __init__(self, x, y, w, h, kind="block"):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
-        self.kind = kind
-        color = "red" if kind == "spike" else "brown"
-        self.id = canvas.create_rectangle(self.x, self.y, self.x+self.w, self.y+self.h, fill=color)
-
-    def update(self, speed):
-        self.x -= speed
-        canvas.coords(self.id, self.x, self.y, self.x+self.w, self.y+self.h)
-
-    def offscreen(self):
-        return (self.x + self.w) < -50
-
-    def bbox(self):
-        return (self.x, self.y, self.x+self.w, self.y+self.h)
-
-# ---------- Game functions ----------
-def spawn_obstacle():
-    # different obstacle sizes and heights
-    h = randint(40, 120)
-    kind = choice(["block"]*7 + ["spike"]*3)
-    y = GROUND_Y - h
-    w = randint(40, 90)
-    obs = Obstacle(WIDTH + 20, y, w, h, kind)
-    obstacles.append(obs)
-
-def check_collision(a_bbox, b_bbox):
-    ax1, ay1, ax2, ay2 = a_bbox
-    bx1, by1, bx2, by2 = b_bbox
-    return not (ax2 < bx1 or ax1 > bx2 or ay2 < by1 or ay1 > by2)
-
-def game_over(message="Game Over"):
-    global game_running, highscore, score
-    game_running = False
-    if score > highscore:
-        highscore = score
-        safe_save_json(HIGHSCORE_FILE, {"highscore": highscore})
-    top = Toplevel(root)
-    top.title("Game Over")
-    Label(top, text=f"{message}\nScore: {score}\nHighscore: {highscore}", font=("Arial", 14)).pack(padx=10, pady=10)
-    def restart():
-        top.destroy()
-        start_game()
-    Button(top, text="Play Again", command=restart).pack(pady=5)
-    Button(top, text="Quit", command=root.destroy).pack(pady=5)
-
-def update_score_text():
-    canvas.delete("hud")
-    canvas.create_text(80,20, text=f"Score: {score}", font=("Arial", 14, "bold"), tag="hud")
-    canvas.create_text(240,20, text=f"Lives: {lives}", font=("Arial", 14, "bold"), tag="hud")
-    canvas.create_text(420,20, text=f"High: {highscore}", font=("Arial", 14, "bold"), tag="hud")
-def game_loop():
-    global last_spawn, score, lives, game_running, speed_multiplier, angle_latest
-
-    if not game_running:
-        return
-
-    now = int(time.time()*1000)
-    if now - last_spawn > OBSTACLE_SPAWN_MS:
-        spawn_obstacle()
-        last_spawn = now
-
-    read_serial_latest()
-
-    # map angle to normalized value (0..1)
-    if angle_latest is not None:
-        mn = calibration.get("min", 40.0)
-        mx = calibration.get("max", 150.0)
-        val = max(mn, min(mx, angle_latest))
-        normalized = (val - mn) / (mx - mn)
-        normalized = max(0.0, min(1.0, normalized))
-        player.set_y_from_angle(normalized)
-
-    # update obstacles horizontally
-    for o in list(obstacles):
-        o.update(OBSTACLE_SPEED_BASE + speed_multiplier)
-        if o.offscreen():
-            canvas.delete(o.id)
-            obstacles.remove(o)
-            score += 1
-        elif check_collision(player.get_bbox(), o.bbox()):
-            canvas.delete(o.id)
-            obstacles.remove(o)
-            lives -= 1
-            if lives <= 0:
-                game_over("No lives left")
-                return
-
-    update_score_text()
-    speed_multiplier = min(8, score // 10)
-    root.after(20, game_loop)
-
-# ---------- Serial reading: read all available lines and keep latest numeric ----------
-def read_serial_latest():
-    global serial_conn, angle_latest
-    if serial_conn:
+# --- SERIAL UTILS (Mantenido) ---
+def find_arduino_port():
+    if sys.platform.startswith('win'):
+        ports = [f'COM{i+1}' for i in range(20)]
+    elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
+        ports = glob.glob('/dev/tty[A-Za-z]*')
+    elif sys.platform.startswith('darwin'):
+        ports = glob.glob('/dev/tty.*')
+    else:
+        ports = []
+    for p in ports:
         try:
-            latest = None
-            while True:
-                if hasattr(serial_conn, "in_waiting") and serial_conn.in_waiting == 0:
-                    break
-                raw = serial_conn.readline()
-                if not raw:
-                    break
-                try:
-                    s = raw.decode("utf-8", errors="ignore").strip()
-                except Exception:
-                    s = ""
-                if not s:
-                    continue
-                try:
-                    latest = float(s)
-                except Exception:
-                    # ignore non-numeric lines
-                    pass
-            if latest is not None:
-                angle_latest = float(latest)
+            s = serial.Serial(p); s.close()
+            return p
         except Exception:
-            # keep silent on serial hiccups
-            pass
+            continue
+    return None
 
-# ---------- Controls ----------
-def on_key(event):
-    k = event.keysym
-    if k in ("space", "Up"):
-        player.jump_keyboard()
-    elif k in ("Left",):
-        player.x = max(10, player.x - 20)
-    elif k in ("Right",):
-        player.x = min(WIDTH - player.width - 10, player.x + 20)
+def connect_arduino():
+    port = find_arduino_port()
+    if not port:
+        print("No Arduino found (keyboard only).")
+        return None
+    try:
+        s = serial.Serial(port, ARDUINO_BAUD, timeout=0)
+        time.sleep(2)
+        s.reset_input_buffer()
+        print("Connected to Arduino:", port)
+        return s
+    except Exception as e:
+        print("Serial error:", e)
+        return None
 
-def calibrate_min():
-    # capture current Arduino reading as min (relaxed)
-    if angle_latest is None:
-        msg = "No Arduino reading available; ensure device is connected and pot moved."
-    else:
-        calibration["min"] = float(angle_latest)
-        safe_save_json(CALIB_FILE, calibration)
-        msg = f"Calibrated MIN to {calibration['min']:.1f}"
-    popup_message(msg)
+# --- GAME CLASS ---
+class RocketGame:
+    def __init__(self, root):
+        self.root = root
+        self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
+        self.canvas.pack()
+        
+        # Load assets
+        self.bg_img = load_image(r"Game 3 - Extension\space.png", (WIDTH, HEIGHT))
+        self.rocket_img = load_image(r"Game 3 - Extension\rocket.png", ROCKET_SIZE)
+        self.star_img = load_image(r"Game 3 - Extension\star.png", (50, 50))
+        self.platform_img = load_image(r"Game 3 - Extension\platform.png", (PLATFORM_WIDTH, PLATFORM_HEIGHT))
 
-def calibrate_max():
-    if angle_latest is None:
-        msg = "No Arduino reading available; ensure device is connected and pot moved."
-    else:
-        calibration["max"] = float(angle_latest)
-        safe_save_json(CALIB_FILE, calibration)
-        msg = f"Calibrated MAX to {calibration['max']:.1f}"
-    popup_message(msg)
+        self.canvas.create_image(0, 0, image=self.bg_img, anchor=NW)
+        
+        # Rocket initialization (bottom center)
+        self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
+        self.rocket_y = HEIGHT - ROCKET_SIZE[1] - 10
+        self.rocket_item = self.canvas.create_image(self.rocket_x, self.rocket_y, image=self.rocket_img, anchor=NW)
+        
+        # Star initialization (top center)
+        self.star_item = self.canvas.create_image(WIDTH // 2 - 25, STAR_Y - 25, image=self.star_img, anchor=NW)
 
-def popup_message(txt):
-    t = Toplevel(root)
-    t.title("Info")
-    Label(t, text=txt, padx=20, pady=10).pack()
-    Button(t, text="OK", command=t.destroy).pack(pady=5)
+        # Score/Level display
+        self.score_text = self.canvas.create_text(50, 24, text="Plataforma: 0/12", font=("Arial", 16), fill="white")
+        self.level_text = self.canvas.create_text(WIDTH - 50, 24, text=f"Level: 1", font=("Arial", 16), fill="white")
 
-# ---------- UI: main menu and start ----------
-def start_menu():
-    canvas.delete("all")
-    canvas.create_image(0, 0, image=bg_image, anchor=NW)
-    canvas.create_text(WIDTH//2, 80, text="Wrist Flexion Jump Trainer", font=("Arial", 28, "bold"), fill="white")
-    canvas.create_text(WIDTH//2, 140, text="Use wrist flexion (potentiometer) to jump.",
-                       font=("Arial", 14), fill="white")
-    btn_play = Button(root, text="Play", command=start_game, width=10)
-    btn_cal_min = Button(root, text="Calibrate MIN", command=calibrate_min, width=12)
-    btn_cal_max = Button(root, text="Calibrate MAX", command=calibrate_max, width=12)
-    canvas.create_window(WIDTH//2 - 120, 220, window=btn_play)
-    canvas.create_window(WIDTH//2 + 20, 220, window=btn_cal_min)
-    canvas.create_window(WIDTH//2 + 160, 220, window=btn_cal_max)
+        # Buttons
+        self.jump_btn = Button(root, text="JUMP (Extensión)", command=self.attempt_jump)
+        self.jump_btn.pack(side="left", padx=10)
+        self.reset_btn = Button(root, text="RESET", command=self.reset_game)
+        self.reset_btn.pack(side="left", padx=10)
+
+        # Controls
+        root.bind("<space>", lambda e: self.attempt_jump())
+        root.bind("<Left>", self.keyboard_move)
+        root.bind("<Right>", self.keyboard_move)
+        
+        # Game variables
+        self.current_platform_index = -1 # -1: Suelo, 0: Plataforma 1, etc.
+        self.level = 1
+        self.game_over = False
+        self.arduino = connect_arduino()
+        self.platforms = []
+        self.rocket_w, self.rocket_h = ROCKET_SIZE
+        self.vertical_offset = 0 
+        self.is_jumping = False
+        self.jump_end_offset = 0
+        self.pot_normalized = 1.0 
+        
+        self.spawn_platforms()
+        
+        self.root.after(UPDATE_MS, self.update)
+        
+        if self.arduino:
+            self.root.after(50, self.update_from_arduino)
+        
+        self.start_time = time.time()
+
+
+    # --- PLATFORMS ---
+    def spawn_platforms(self):
+        for p in self.platforms:
+            self.canvas.delete(p["id"])
+            self.canvas.delete(p["id_img"])
+        self.platforms.clear()
+        
+        y_step = JUMP_HEIGHT
+        
+        for i in range(PLATFORM_COUNT):
+            y = self.rocket_y - ROCKET_SIZE[1] - (i + 1) * y_step
+            x = randint(0, WIDTH - PLATFORM_WIDTH)
+            
+            # Plataformas móviles
+            speed = PLATFORM_MIN_SPEED + (self.level - 1) * 0.5 + randint(0, 10) / 10 * (PLATFORM_MAX_SPEED - PLATFORM_MIN_SPEED)
+            direction = choice([-1, 1])
+
+            pid_rect = self.canvas.create_rectangle(x, y, x + PLATFORM_WIDTH, y + PLATFORM_HEIGHT, fill="", outline="")
+            pid_img = self.canvas.create_image(x, y, image=self.platform_img, anchor=NW)
+            
+            self.platforms.append(dict(
+                id=pid_rect, 
+                id_img=pid_img,
+                x=x, y=y, 
+                w=PLATFORM_WIDTH, 
+                h=PLATFORM_HEIGHT,
+                speed=speed,
+                dir=direction
+            ))
+        
+        self.platforms.sort(key=lambda p: p['y'], reverse=True)
+
+
+    def update_platforms(self):
+        for p in self.platforms:
+            # Movimiento horizontal de la plataforma
+            p["x"] += p["dir"] * p["speed"]
+            
+            # Rebotar en los bordes
+            if p["x"] < 0:
+                p["x"] = 0
+                p["dir"] = 1
+            elif p["x"] > WIDTH - p["w"]:
+                p["x"] = WIDTH - p["w"]
+                p["dir"] = -1
+                
+            # Ajustar la posición vertical de la imagen y el rectángulo por el offset
+            y_adjusted = p["y"] - self.vertical_offset
+            self.canvas.coords(p["id_img"], p["x"], y_adjusted)
+            self.canvas.coords(p["id"], p["x"], y_adjusted, p["x"] + p["w"], y_adjusted + p["h"])
+
+
+    # --- CONTROLS ---
+    def keyboard_move(self, event):
+        if self.game_over or self.is_jumping: return
+        step = 10
+        if event.keysym == 'Left':
+            self.rocket_x = max(0, self.rocket_x - step)
+        elif event.keysym == 'Right':
+            self.rocket_x = min(WIDTH - self.rocket_w, self.rocket_x + step)
+        self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+        
+    def check_platform_alignment(self, platform):
+        # Comprueba si el cohete está horizontalmente sobre la plataforma
+        rocket_left = self.rocket_x
+        rocket_right = self.rocket_x + self.rocket_w
+        platform_left = platform["x"]
+        platform_right = platform["x"] + platform["w"]
+        
+        # El cohete debe superponerse completamente a la plataforma
+        return (rocket_right > platform_left and rocket_left < platform_right)
+
+    def attempt_jump(self):
+        if self.game_over or self.is_jumping: return
+        
+        # 1. Condición de Extensión: Solo permite saltar si el potenciómetro está en Extensión (ángulo bajo)
+        if self.arduino and self.pot_normalized > 0.2:
+            print(f"Jump failed: Requires Extension (angle < {ANGLE_MIN + (ANGLE_MAX - ANGLE_MIN)*0.2:.1f}°)")
+            return
+        
+        # 2. Identificar la siguiente plataforma objetivo
+        next_index = self.current_platform_index + 1
+        
+        if next_index >= PLATFORM_COUNT:
+             # Salto final a la estrella
+             self.jump_end_offset = HEIGHT - STAR_Y - ROCKET_SIZE[1] # Distancia a la estrella
+             self.is_jumping = True
+             self.current_platform_index = next_index
+             return
+        
+        next_platform = self.platforms[next_index]
+        
+        # 3. Condición de Alineación Horizontal
+        if not self.check_platform_alignment(next_platform):
+            print("Jump failed: Rocket is not aligned with the platform.")
+            return
+
+        # 4. Iniciar el ascenso
+        self.current_platform_index = next_index
+        
+        # La distancia vertical es fija, hasta la base de la plataforma
+        self.jump_end_offset = self.vertical_offset + JUMP_HEIGHT 
+        self.is_jumping = True
+        
+        self.canvas.itemconfig(self.score_text, text=f"Plataforma: {self.current_platform_index}/{PLATFORM_COUNT}")
+
+    
+    def ascend(self):
+        # Mover el fondo verticalmente
+        if not self.is_jumping: return
+        
+        # Calcular el destino vertical basado en el offset del suelo
+        target_offset = self.vertical_offset + JUMP_HEIGHT
+        
+        # Si es el último salto (a la estrella)
+        if self.current_platform_index > PLATFORM_COUNT:
+             target_offset = self.jump_end_offset
+
+        remaining_vertical_jump = target_offset - self.vertical_offset
+        
+        # 1. Movimiento Vertical (Fondo)
+        if remaining_vertical_jump <= JUMP_SPEED:
+            move_y = remaining_vertical_jump
+            self.is_jumping = False # Finalizar el salto
+        else:
+            move_y = JUMP_SPEED
+
+        self.vertical_offset += move_y
+            
+        # Mover la estrella y las plataformas para simular el ascenso del cohete
+        self.canvas.move(self.star_item, 0, move_y)
+        for p in self.platforms:
+            self.canvas.move(p["id_img"], 0, move_y)
+            self.canvas.move(p["id"], 0, move_y)
+            
+        # 2. Comprobación Final (si ya no está saltando)
+        if not self.is_jumping:
+            # Si hemos llegado al final (la estrella)
+            if self.current_platform_index > PLATFORM_COUNT:
+                self.game_over = True
+                self.root.after(500, self.show_end_menu)
+            else:
+                 # El cohete aterriza en la posición horizontal donde estaba
+                 pass
+
+
+    # --- ARDUINO POLLING ---
+    def update_from_arduino(self):
+        if self.arduino:
+            latest = None
+            try:
+                while True:
+                    raw = self.arduino.readline()
+                    if not raw: break
+                    s = raw.decode('utf-8', errors='ignore').strip()
+                    if not s: continue
+                    try:
+                        angle = float(s)
+                        latest = angle
+                    except ValueError: continue 
+
+                if latest is not None:
+                    angle = max(ANGLE_MIN, min(ANGLE_MAX, latest))
+                    self.pot_normalized = (angle - ANGLE_MIN) / (ANGLE_MAX - ANGLE_MIN)
+                    
+                    # Mover el cohete horizontalmente con el potenciómetro
+                    max_x = WIDTH - self.rocket_w
+                    target_x_by_pot = max_x * self.pot_normalized
+                    self.rocket_x = int(max(0, min(max_x, target_x_by_pot)))
+                    
+                    self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+                    
+            except Exception as e:
+                pass
+
+        self.root.after(50, self.update_from_arduino)
+
+
+    # --- UPDATE LOOP ---
+    def update(self):
+        self.root.after(UPDATE_MS, self.update)
+        if self.game_over: return
+        
+        # 1. Mover plataformas horizontalmente
+        self.update_platforms()
+
+        # 2. Ascenso/Salto
+        if self.is_jumping:
+            self.ascend()
+        
+        # 3. Comprobar si ha llegado a la estrella
+        if self.vertical_offset >= HEIGHT - STAR_Y - ROCKET_SIZE[1]:
+            self.game_over = True
+            self.root.after(500, self.show_end_menu)
+        
+        
+    def reset_game(self):
+        self.current_platform_index = -1
+        self.level = 1
+        self.vertical_offset = 0
+        self.is_jumping = False
+        self.jump_end_offset = 0
+        self.game_over = False
+        self.start_time = time.time()
+
+        # Reiniciar cohete
+        self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
+        self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+        
+        # Reiniciar estrella (moverla a su posición original)
+        self.canvas.coords(self.star_item, WIDTH // 2 - 25, STAR_Y - 25)
+        
+        # Regenerar plataformas
+        self.spawn_platforms()
+        
+        self.canvas.itemconfig(self.score_text, text=f"Plataforma: 0/{PLATFORM_COUNT}")
+        self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
+
+
+    # --- END MENU ---
+    def show_end_menu(self):
+        self.game_over = True
+        total_time = round(time.time() - self.start_time, 1)
+        win = Toplevel(self.root)
+        win.title("Game Over")
+        win.resizable(False, False)
+        c = Canvas(win, width=400, height=300)
+        c.pack()
+        
+        if self.vertical_offset >= HEIGHT - STAR_Y - ROCKET_SIZE[1]:
+            msg = f"🌟 ¡Misión Cumplida! 🌟\n\n Tiempo total: {total_time} segundos"
+            
+            def _play_again():
+                win.destroy()
+                self.level += 1
+                self.reset_game()
+            
+            play_btn_text = "SIGUIENTE NIVEL"
+            play_btn_command = _play_again
+            
+        else:
+            msg = f"🚀 Juego Terminado\n\nTiempo transcurrido: {total_time} segundos"
+            
+            def _play_again():
+                win.destroy()
+                self.reset_game()
+                
+            play_btn_text = "REINTENTAR"
+            play_btn_command = _play_again
+            
+        c.create_text(200, 100, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black")
+
+        Button(win, text=play_btn_text, bg="green", fg="white",
+            font=("Arial", 14, "bold"), command=play_btn_command).place(x=120, y=180)
+        Button(win, text="SALIR", bg="red", fg="white", font=("Arial", 14, "bold"),
+            command=self.root.destroy).place(x=250, y=180)
+
+# --- START MENU ---
+def start_menu(root):
+    canvas = Canvas(root, width=WIDTH, height=HEIGHT)
+    canvas.pack()
+    canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#2c3e50", outline="")
+    canvas.create_text(WIDTH//2, 150, text="🚀 Rocket Extensión Game 🌟",
+                       font=("Comic Sans MS", 30, "bold"), fill="white")
     canvas.create_text(WIDTH//2, 300,
-                       text=f"Current calibration: min={calibration.get('min'):.1f}, max={calibration.get('max'):.1f}",
-                       font=("Arial", 12), fill="white")
+                       text=("Mueve el cohete horizontalmente con la muñeca para alinearte.\n"
+                             "Para **SALTAR** (ascenso vertical) a la siguiente plataforma, debes:\n"
+                             "1. Estar **alineado horizontalmente** sobre la plataforma móvil.\n"
+                             "2. Ejecutar la **EXTENSIÓN** de muñeca (ángulo bajo).\n"
+                             "Las plataformas se mueven continuamente de izquierda a derecha.\n"
+                             "**EXTENSIÓN ({:.1f}°):** Permite saltar. **FLEXIÓN ({:.1f}°):** No permite saltar.".format(ANGLE_MIN, ANGLE_MAX)),
+                       font=("Comic Sans MS", 16), fill="white", justify="center")
+    Button(root, text="JUGAR", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
+           command=lambda: (canvas.destroy(), RocketGame(root))).place(x=WIDTH//2 - 60, y=500)
 
-def start_game():
-    global player, obstacles, score, lives, game_running, serial_conn, last_spawn, speed_multiplier, angle_latest
-    # Reset
-    canvas.delete("all")
-    canvas.create_image(0, 0, image=bg_image, anchor=NW)
-    player = Player(PLAYER_X, GROUND_Y - 70)
-    obstacles = []
-    score = 0
-    lives = 3
-    speed_multiplier = 0
-    last_spawn = int(time.time()*1000)
-    angle_latest = None
-    game_running = True
-
-    # start serial if not connected yet
-    if serial_conn is None:
-        connect_serial()
-
-    # draw ground
-    canvas.create_rectangle(0, GROUND_Y, WIDTH, HEIGHT, fill="#7fbf7f", outline="", tag="ground")
-    update_score_text()
-    root.bind("<Key>", on_key)
-    root.after(20, game_loop)
-
-# ---------- Startup ----------
-start_menu()
-root.mainloop()
+# --- MAIN ---
+if __name__ == "__main__":
+    root = Tk()
+    root.title("Rocket Extension Game")
+    start_menu(root)
+    root.mainloop()
