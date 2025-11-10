@@ -171,6 +171,12 @@ class Bird:
         self.color = color
         self.image = blue_bird_photo if color == "blue" else bomb_photo
         self.bird = canvas_obj.create_image(x, y, image=self.image, anchor="nw")
+        self.explosion = None
+    
+    def place_explosion(self, Xcoord, Ycoord):
+        self.explosion = canvas.create_image(Xcoord, Ycoord, anchor="nw", image=explosion_photo)
+        self.canvas.update()
+        self.canvas.after(500, lambda: self.canvas.delete(self.explosion))
 
     def move_bird(self):
         global limit, dist, game_active
@@ -182,6 +188,7 @@ class Bird:
             return
         bird_x, bird_y = bird_coords[0], bird_coords[1]
 
+
         # Reached the basket (left edge)
         if bird_x <= 50:
             if dist - offset <= bird_y <= dist + 100 + offset:
@@ -189,12 +196,14 @@ class Bird:
                     change_score(+1)
                 else:
                     change_lives(-1)
+                    self.place_explosion(10, bird_y)
                 canvas.delete(self.bird)
                 bird_set()
             else:
                 canvas.delete(self.bird)
                 if self.color == "blue":
                     change_lives(-1)
+                    self.place_explosion(10, bird_y)
                 bird_set()
             return
 
