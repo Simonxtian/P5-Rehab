@@ -119,6 +119,7 @@ bg_photo         = load_image(r"Game 2 - All\game_background.jpg", (WIDTH, HEIGH
 basket_photo     = load_image(r"Game 2 - All\basket.png", (80, 100), fallback="basket")
 blue_bird_photo  = load_image(r"Game 2 - All\blue_bird.png", (70, 50), fallback="blue")
 bomb_photo   = load_image(r"Game 2 - All\Bomb.png", (50, 50), fallback="red")
+explosion_photo  = load_image(r"Game 2 - All\Explosion.png", (80, 80), fallback="Explosion")
 
 # --- Arduino detection ---
 def find_arduino_port():
