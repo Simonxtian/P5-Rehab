@@ -362,9 +362,9 @@ def update_from_arduino():
         try:
             # Drain all currently queued lines and keep only the newest valid numeric one
             while True:
-                if hasattr(arduino, "in_waiting"):
-                    if arduino.in_waiting == 0:
-                        break
+                #if hasattr(arduino, "in_waiting"):
+                 #   if arduino.in_waiting == 0:
+                  #      break
                 raw = arduino.readline()  # non-blocking due to timeout=0
                 if not raw:
                     break
