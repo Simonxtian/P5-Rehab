@@ -206,6 +206,7 @@ class Basket:
     def __init__(self, canvas_obj, x, y):
         self.canvas = canvas_obj
         self.basket = canvas_obj.create_image(x, y, image=basket_photo, anchor="nw")
+        self.canvas.tag_raise(self.basket)
 
     def set_position(self, y):
         """Move basket to a specific y-coordinate."""
@@ -223,6 +224,8 @@ def bird_set():
     color = "blue" if randint(1, 10) <= 7 else "red"
     bird = Bird(canvas, WIDTH - 80, y_value, color)
     bird.move_bird()
+    canvas.tag_raise(bar_obj.basket)
+
 
 def change_lives(amount):
     """Change lives and handle game over logic."""
