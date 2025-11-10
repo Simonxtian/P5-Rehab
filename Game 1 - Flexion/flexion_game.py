@@ -1,6 +1,6 @@
 import os, sys, time, glob, serial
 from random import randint, choice
-from tkinter import Tk, Canvas, Button, NW, Toplevel, Label
+from tkinter import Tk, Canvas, Button, NW, Toplevel
 from PIL import Image, ImageTk
 
 # --- CONFIG ---
@@ -17,7 +17,7 @@ OBJECT_TYPES = [
     ("fish", "fish.png", +2),
     ("trash", "trash.png", -3)
 ]
-NUM_OBJECTS = 20  # fewer items
+NUM_OBJECTS = 20
 
 # --- IMAGE LOADER ---
 def load_image(path, size=None):
@@ -57,7 +57,7 @@ def find_arduino_port():
 def connect_arduino():
     port = find_arduino_port()
     if not port:
-        print("No Arduino found (test mode only).")
+        print("No Arduino found (keyboard only).")
         return None
     try:
         s = serial.Serial(port, ARDUINO_BAUD, timeout=0)
@@ -76,7 +76,6 @@ class FishingGame:
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
         
-
         # Load assets
         self.bg_img = load_image(r"Game 1 - Flexion\sea.png", (WIDTH, HEIGHT))
         self.rod_img = load_image(r"Game 1 - Flexion\fishing_rod.png", (90, 90))
@@ -91,11 +90,11 @@ class FishingGame:
         self.rod_item = self.canvas.create_image(100, ROD_Y, image=self.rod_img, anchor=NW)
         self.canvas.tag_raise(self.rope_item, self.rod_item)
 
-        # NEW LINE ⬇️
+        # Score display
         self.score_text = self.canvas.create_text(80, 24, text="Score: 0", font=("Arial", 16), fill="black")
         self.level_text = self.canvas.create_text(700, 24, text=f"Level: 1", font=("Arial",16), fill="black")
 
-
+        # Buttons
         self.stop_btn = Button(root, text="STOP/RESUME", command=self.toggle_sweep)
         self.stop_btn.pack(side="left", padx=10)
         self.reset_btn = Button(root, text="RESET", command=self.reset_round)
@@ -118,15 +117,19 @@ class FishingGame:
         self.score = 0
         self.start_time = time.time()
         self.arduino = connect_arduino()
+        self.button_pressed = 0
+        self.pot_normalized = 0
         self.objects = []
         self.spawn_objects()
         self.root.after(UPDATE_MS, self.update)
-        self.sweep_speed = ROD_SWEEP_SPEED  # Start speed (base speed)
+        self.sweep_speed = ROD_SWEEP_SPEED
         self.level = 1
         self.temp_texts = []
         self.game_over = False
 
-
+        # Start Arduino polling if connected
+        if self.arduino:
+            self.root.after(100, self.update_from_arduino)
 
     # --- OBJECTS ---
     def spawn_objects(self):
@@ -151,7 +154,7 @@ class FishingGame:
             self.sweeping = False
             self.stopped = True
         elif self.stopped:
-            self.set_rope(0)  # retract rope completely
+            self.set_rope(0)
             self.canvas.itemconfig(self.rope_item, state="normal")
             self.sweeping = True
             self.stopped = False
@@ -163,16 +166,13 @@ class FishingGame:
         self.spawn_objects()
         self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
         self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
-        
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
 
-
-
     def adjust_rope(self, event):
         if self.arduino is not None or not self.stopped:
-            return
+            return  # ignore if Arduino connected
         step = 15
         if event.keysym in ('w', 'Up'):
             self.rope_len = max(0, self.rope_len - step)
@@ -206,70 +206,81 @@ class FishingGame:
                     text=f"{obj['pts']:+}", font=("Arial", 14, "bold"), fill="black"
                 )
                 self.temp_texts.append(text_id)
-
-
-                # Hide rope immediately (caught something)
                 self.canvas.itemconfig(self.rope_item, state="hidden")
-
-                # Check if game is finished
                 if self.all_good_collected():
                     self.sweeping = False
                     self.stopped = True
                     self.game_over = True
                     self.root.after(500, self.show_end_menu)
                 else:
-                    # Start automatic retract & resume
                     self.root.after(500, self.finish_catch_and_resume)
                 return True
         return False
     
     def set_rope(self, length):
-        """Safely set rope length and update its position."""
         self.rope_len = max(0, min(ROPE_MAX_LEN, length))
         self.update_rope()
 
     def finish_catch_and_resume(self):
-        """Retract rope, make it follow the rod, and resume sweeping."""
         self.set_rope(0)
         self.canvas.itemconfig(self.rope_item, state="normal")
         self.sweeping = True
         self.stopped = False
 
-    def update(self):
-        # Always schedule the next update
-        self.root.after(UPDATE_MS, self.update)
+    # --- ARDUINO POLLING ---
+    def update_from_arduino(self):
+        if self.arduino:
+            latest = None
+            try:
+                while True:
+                    raw = self.arduino.readline()
+                    if not raw:
+                        break
+                    s = raw.decode('utf-8', errors='ignore').strip()
+                    if not s:
+                        continue
+                    try:
+                        angle = float(s)  # directly convert the line to float
+                        latest = angle
+                    except ValueError:
+                        continue  # ignore non-numeric lines
 
-        if self.game_over:
-            return  # do nothing, rod frozen
+                if latest is not None:
+                    # Map 40°–150° to rope length (0–ROPE_MAX_LEN)
+                    angle = max(40.0, min(150.0, latest))
+                    self.pot_normalized = (angle - 40.0) / (150.0 - 40.0)  # 0 to 1
+                    y_pos = self.pot_normalized * ROPE_MAX_LEN
+                    self.set_rope(int(y_pos))
+
+            except Exception:
+                pass
+
+        self.root.after(50, self.update_from_arduino)
+
+    # --- UPDATE LOOP ---
+    def update(self):
+        self.root.after(UPDATE_MS, self.update)
+        if self.game_over: return
 
         if self.sweeping:
             self.rod_x += self.rod_dir * self.sweep_speed
             if self.rod_x < 0: self.rod_dir = 1
             if self.rod_x > WIDTH - self.rod_img.width(): self.rod_dir = -1
             self.canvas.coords(self.rod_item, self.rod_x, ROD_Y)
-
             if self.check_hit():
                 if not self.game_over:
                     self.sweeping = False
                     self.stopped = True
                 return
-
         self.update_rope()
-    
-    def all_good_collected(self):
-        return not any(o["type"] in ("gold","fish") for o in self.objects)
 
-    # --- MENUS ---
+    # --- END MENU ---
     def show_end_menu(self):
-        # Stop rod
         self.sweeping = False
         self.stopped = True
-
-        # Clear floating texts
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
-
         total_time = round(time.time() - self.start_time, 1)
         win = Toplevel(self.root)
         win.title("Game Over")
@@ -283,17 +294,11 @@ class FishingGame:
             win.destroy()
             self.level += 1
             self.sweep_speed = ROD_SWEEP_SPEED + (self.level - 1) * 1.2
-
-            # Reset round completely
             self.reset_round()
-
-            # Reset rod
             self.rod_x = 100
             self.rod_dir = 1
             self.set_rope(0)
             self.canvas.coords(self.rod_item, self.rod_x, ROD_Y)
-
-            # Resume game
             self.game_over = False
             self.sweeping = True
             self.stopped = False
