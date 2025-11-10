@@ -113,10 +113,10 @@ def load_image(path, size, fallback="rect"):
             draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 0), width=2)
         return ImageTk.PhotoImage(img)
 
-bg_photo         = load_image("game_background.jpg", (WIDTH, HEIGHT))
-basket_photo     = load_image("basket.png", (80, 100), fallback="basket")
-blue_bird_photo  = load_image("blue_bird.png", (70, 50), fallback="blue")
-bomb_photo   = load_image("Bomb.png", (50, 50), fallback="red")
+bg_photo         = load_image(r"Game 2 - All\game_background.jpg", (WIDTH, HEIGHT))
+basket_photo     = load_image(r"Game 2 - All\basket.png", (80, 100), fallback="basket")
+blue_bird_photo  = load_image(r"Game 2 - All\blue_bird.png", (70, 50), fallback="blue")
+bomb_photo   = load_image(r"Game 2 - All\Bomb.png", (50, 50), fallback="red")
 
 # --- Arduino detection ---
 def find_arduino_port():

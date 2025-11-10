@@ -77,12 +77,12 @@ class FishingGame:
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
 
-        self.bg_img = load_image("sea.png", (WIDTH, HEIGHT))
-        self.rod_img = load_image("fishing_rod.png", (90, 90)) # NEW SIZE
+        self.bg_img = load_image(r"Game 1 - Flexion\sea.png", (WIDTH, HEIGHT))
+        self.rod_img = load_image(r"Game 1 - Flexion\fishing_rod.png", (90, 90)) # NEW SIZE
         self.obj_imgs = {
-            "gold": load_image("gold.png", (60,60)),
-            "fish": load_image("fish.png", (60,60)),
-            "trash": load_image("trash.png", (60,60)),
+            "gold": load_image(r"Game 1 - Flexion\gold.png", (60,60)),
+            "fish": load_image(r"Game 1 - Flexion\fish.png", (60,60)),
+            "trash": load_image(r"Game 1 - Flexion\trash.png", (60,60)),
         }
 
         self.canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#80bfff", outline="")
