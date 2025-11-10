@@ -126,7 +126,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         raise EnvironmentError('Unsupported platform')
 
