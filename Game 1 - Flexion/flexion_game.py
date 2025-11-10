@@ -17,7 +17,7 @@ OBJECT_TYPES = [
     ("fish", "fish.png", +2),
     ("trash", "trash.png", -3)
 ]
-NUM_OBJECTS = 5  # fewer items
+NUM_OBJECTS = 20  # fewer items
 
 # --- IMAGE LOADER ---
 def load_image(path, size=None):
