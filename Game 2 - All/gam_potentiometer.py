@@ -27,6 +27,8 @@ game_active = True
 lives = 3
 Total_lives_text = None
 total_lives = 3
+ButtonPress = 0
+normalized = 0
 
 
 # --- Tkinter setup ---
@@ -320,6 +322,7 @@ def score_board(message="Game Over!"):
     c2.create_window(200, 280, window=btn_exit)
 
 def start_menu():
+    global ButtonPress
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
@@ -333,7 +336,7 @@ def start_menu():
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (0 - 6):",
                        font=("Comic Sans MS", 20), fill="black")
 
-    speed_slider = Scale(canvas, from_=0, to=6, orient=HORIZONTAL, length=400,
+    speed_slider = Scale(canvas, from_=1, to=6, orient=HORIZONTAL, length=400,
                          font=("Comic Sans MS", 16))
     speed_slider.set(3)
     speed_slider.place(x=200, y=440)
@@ -345,8 +348,33 @@ def start_menu():
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
 
+
+    def check_button_press():
+        global ButtonPress
+        update_from_arduino()
+        #print(normalized)
+        if normalized < 1/6:
+            speed_slider.set(1)
+        elif normalized < 2/6:
+            speed_slider.set(2)
+        elif normalized < 3/6:
+            speed_slider.set(3)
+        elif normalized < 4/6:
+            speed_slider.set(4)
+        elif normalized < 5/6:
+            speed_slider.set(5)
+        elif normalized < 6/6:
+            speed_slider.set(6)
+
+        if ButtonPress == 1:
+            start_game(speed_slider.get())
+        else:
+            canvas.after(50, check_button_press)
+    check_button_press()
+
+
 def start_game(selected_speed):
-    global speed_value, base_speed, level
+    global speed_value, base_speed, level, ButtonPress
     base_speed = selected_speed
     speed_value = base_speed
     level = 1
@@ -356,10 +384,11 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
+    global ButtonPress, normalized
     """Read potentiometer and move basket (consume backlog, use latest)."""
     if arduino:
         latest = None
-        print("Latest = 0")
+        #print("Latest = 0")
         try:
             # Drain all currently queued lines and keep only the newest valid numeric one
             while True:
@@ -367,26 +396,33 @@ def update_from_arduino():
                  #   if arduino.in_waiting == 0:
                   #      break
                 raw = arduino.readline()  # non-blocking due to timeout=0
-                print("Ardu Read")
+                #print("Ardu Read")
                 #print(raw)
                 if not raw:
                     break
                 s = raw.decode('utf-8', errors='ignore').strip()
-                print(s)
+                #print(s)
                 if not s:
                     continue
                 Number = s.split(": ")
                 Number[1] = float(Number[1])
-                print(Number[1])
+                #print(Number[1])
                 if Number[1] < 1500:
-                    print("Pot Info")
+                    #print("Pot Info")
                     try:
                         latest = Number[1]
                     except ValueError:
                     # Ignore partial / non-numeric lines
                         pass
                 if Number[1] > 1500:
-                    print("Buttonpress")
+                    if Number[1] == 2001:
+                        ButtonPress = 1
+                        #print(ButtonPress)
+                        #print("ButtonPressed")
+                    elif Number[1] == 2000:
+                        ButtonPress = 0
+                        #print(ButtonPress)
+                        #print("ButtonReleased")
 
             if latest is not None:
                 angle = latest
