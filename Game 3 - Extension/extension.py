@@ -17,7 +17,7 @@ from tkinter import NW
 from PIL import Image, ImageTk
 
 # ---------- Config ----------
-WIDTH, HEIGHT = 600, 900  # Portrait mode
+WIDTH, HEIGHT = 600, 700  # Portrait mode
 PLAYER_X = WIDTH//2 - 35  # fixed horizontal position
 GROUND_Y = HEIGHT - 100
 GRAVITY = 1.0
@@ -330,9 +330,9 @@ def popup_message(txt):
 def start_menu():
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_image, anchor=NW)
-    canvas.create_text(WIDTH//2, 80, text="Wrist Flexion Jump Trainer", font=("Arial", 28, "bold"))
-    canvas.create_text(WIDTH//2, 140, text="Use wrist flexion (potentiometer) to jump. Space/Up to jump with keyboard.",
-                       font=("Arial", 14))
+    canvas.create_text(WIDTH//2, 80, text="Wrist Flexion Jump Trainer", font=("Arial", 28, "bold"), fill="white")
+    canvas.create_text(WIDTH//2, 140, text="Use wrist flexion (potentiometer) to jump.",
+                       font=("Arial", 14), fill="white")
     btn_play = Button(root, text="Play", command=start_game, width=10)
     btn_cal_min = Button(root, text="Calibrate MIN", command=calibrate_min, width=12)
     btn_cal_max = Button(root, text="Calibrate MAX", command=calibrate_max, width=12)
@@ -341,7 +341,7 @@ def start_menu():
     canvas.create_window(WIDTH//2 + 160, 220, window=btn_cal_max)
     canvas.create_text(WIDTH//2, 300,
                        text=f"Current calibration: min={calibration.get('min'):.1f}, max={calibration.get('max'):.1f}",
-                       font=("Arial", 12))
+                       font=("Arial", 12), fill="white")
 
 def start_game():
     global player, obstacles, score, lives, game_running, serial_conn, last_spawn, speed_multiplier, angle_latest
