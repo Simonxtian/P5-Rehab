@@ -334,6 +334,23 @@ def score_board(message="Game Over!"):
     c2.create_window(200, 220, window=btn_play)
     c2.create_window(200, 280, window=btn_exit)
 
+    def check_button_press_after():
+        global ButtonPress, normalized
+        update_from_arduino()
+        if normalized > 0.5:
+            if ButtonPress == 1:
+                _play_again()
+            else:
+                root.after(50, check_button_press_after)
+        else:
+            if ButtonPress == 1:
+                _exit()
+            else:
+                root.after(50, check_button_press_after)
+    check_button_press_after()
+
+
+
 def start_menu():
     global ButtonPress
     canvas.delete("all")
@@ -346,7 +363,7 @@ def start_menu():
                        text="\n Blue bird = +1 point\nHit the bomb or miss a bird = -1 life\nYou have 3 lives\nIf you reach 30 points you level up!\nCatch blue birds, avoid bombs!",
                        font=("Comic Sans MS", 18), fill="black", justify="center")
 
-    canvas.create_text(WIDTH // 2, 400, text="Select bird speed (0 - 6):",
+    canvas.create_text(WIDTH // 2, 400, text="Select bird speed (1 - 6):",
                        font=("Comic Sans MS", 20), fill="black")
 
     speed_slider = Scale(canvas, from_=1, to=6, orient=HORIZONTAL, length=400,
@@ -362,7 +379,7 @@ def start_menu():
     menu_widgets.append(play_button)
 
 
-    def check_button_press():
+    def check_button_press_start():
         global ButtonPress
         update_from_arduino()
         #print(normalized)
@@ -382,8 +399,8 @@ def start_menu():
         if ButtonPress == 1:
             start_game(speed_slider.get())
         else:
-            canvas.after(50, check_button_press)
-    check_button_press()
+            canvas.after(50, check_button_press_start)
+    check_button_press_start()
 
 
 def start_game(selected_speed):
