@@ -371,11 +371,15 @@ def update_from_arduino():
                 s = raw.decode('utf-8', errors='ignore').strip()
                 if not s:
                     continue
-                try:
-                    latest = float(s)
-                except ValueError:
+                Number = float(s.split(": "))
+                if Number < 1500:
+                    try:
+                        latest = Number
+                    except ValueError:
                     # Ignore partial / non-numeric lines
-                    pass
+                        pass
+                if Number > 1500:
+                    print("Buttonpress")
 
             if latest is not None:
                 angle = latest
