@@ -4,9 +4,9 @@ from tkinter import Tk, Canvas, Button, NW, Toplevel
 from PIL import Image, ImageTk, ImageDraw
 
 # --- CONFIG ---
-HEIGHT, WIDTH = 800, 600
-STAR_Y = 80 # Y coordinate del borde superior de la estrella
-PLATFORM_COUNT = 12 # Total de pasos necesarios (11 plataformas + 1 estrella)
+HEIGHT, WIDTH = 700, 600
+STAR_Y = 5 # Y coordinate del borde superior de la estrella
+PLATFORM_COUNT = 10 # Total de pasos necesarios (11 plataformas + 1 estrella)
 PLATFORM_WIDTH, PLATFORM_HEIGHT = 180, 50
 PLATFORM_MIN_SPEED, PLATFORM_MAX_SPEED = 1.5, 3.5
 ARDUINO_BAUD = 9600
@@ -19,8 +19,8 @@ Y_REF_BOTTOM = HEIGHT - 10 # 790: Línea de base (pies del cohete en Plataforma 
 Y_REF_TOP = STAR_Y         # 80: Línea donde se alinea el borde superior de la estrella
 
 # Calcula JUMP_HEIGHT para 12 pasos verticales uniformes
-TOTAL_VERTICAL_DISTANCE = Y_REF_BOTTOM - Y_REF_TOP
-JUMP_HEIGHT = TOTAL_VERTICAL_DISTANCE / PLATFORM_COUNT 
+TOTAL_VERTICAL_DISTANCE = (Y_REF_BOTTOM - Y_REF_TOP)
+JUMP_HEIGHT = (TOTAL_VERTICAL_DISTANCE / PLATFORM_COUNT)
 
 JUMP_SPEED = 25
 UPDATE_MS = 25
@@ -100,7 +100,7 @@ class RocketGame:
         
         self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
         # Posiciona el cohete en el suelo: Y_Ground - altura del cohete
-        self.rocket_y = self.Y_Ground - ROCKET_SIZE[1] 
+        self.rocket_y = self.Y_Ground - ROCKET_SIZE[0] 
         self.rocket_item = self.canvas.create_image(self.rocket_x, self.rocket_y, image=self.rocket_img, anchor=NW)
 
         # Star (posición inicial temporal)
@@ -155,7 +155,7 @@ class RocketGame:
         # Genera 11 plataformas (PLATFORM_COUNT - 1) para los pasos 1 a 11
         for i in range(1, PLATFORM_COUNT): 
             # La superficie superior de la plataforma debe estar en esta coordenada Y
-            platform_top_y = bottom_y - i * JUMP_HEIGHT 
+            platform_top_y = bottom_y - (i * JUMP_HEIGHT)-30
             
             x = randint(0, WIDTH - PLATFORM_WIDTH)
             speed = randint(int(PLATFORM_MIN_SPEED * 10), int(PLATFORM_MAX_SPEED * 10)) / 10.0
