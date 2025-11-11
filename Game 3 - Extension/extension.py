@@ -93,6 +93,7 @@ class RocketGame:
         self.platform_img = load_image(r"Game 3 - Extension\platform.png", (PLATFORM_WIDTH, PLATFORM_HEIGHT))
 
         self.canvas.create_image(0, 0, image=self.bg_img, anchor=NW)
+        self.restart_count = 0  # Contador de reinicios
 
         # Rocket
         # Define el suelo/Plataforma 0
@@ -107,7 +108,7 @@ class RocketGame:
         self.star_item = self.canvas.create_image(WIDTH // 2 - 25, STAR_Y - 25, image=self.star_img, anchor=NW) 
 
         # Score
-        self.score_text = self.canvas.create_text(60, 24, text="Plataforma: 0/12", font=("Arial", 16), fill="white")
+        self.score_text = self.canvas.create_text(60, 24, text="Plataforma: 0/9", font=("Arial", 16), fill="white")
 
         # Buttons
         self.jump_btn = Button(root, text="JUMP (Space)", command=self.attempt_jump)
@@ -158,7 +159,10 @@ class RocketGame:
             platform_top_y = bottom_y - (i * JUMP_HEIGHT)-30
             
             x = randint(0, WIDTH - PLATFORM_WIDTH)
+            # Aumenta la velocidad según el número de reinicios
+            speed_boost = 1 + (self.restart_count * 0.1)  # +20% por reinicio
             speed = randint(int(PLATFORM_MIN_SPEED * 10), int(PLATFORM_MAX_SPEED * 10)) / 10.0
+            speed *= speed_boost  # aplica el incremento
             direction = choice([-1, 1])
 
             # y es la coordenada superior izquierda (NW anchor) del dibujo
@@ -222,14 +226,23 @@ class RocketGame:
             return
         # Activa el cooldown inmediatamente para bloquear registros dobles
         self.jump_cooldown = self.JUMP_COOLDOWN_MS
-            
+
+
         next_index = self.current_platform_index + 1
         
-        # Condición de victoria: El salto final es a PLATFORM_COUNT (12)
-        if next_index > PLATFORM_COUNT: 
-            self.game_over = True
-            self.show_end_menu()
-            return
+        # --- 🟡 Comprueba si el cohete toca la estrella ---
+        star_coords = self.canvas.bbox(self.star_item)
+        rocket_coords = self.canvas.bbox(self.rocket_item)
+
+        if star_coords and rocket_coords:
+            rx1, ry1, rx2, ry2 = rocket_coords
+            sx1, sy1, sx2, sy2 = star_coords
+
+            # Detección de colisión rectangular
+            if (rx1 < sx2 and rx2 > sx1 and ry1 < sy2 and ry2 > sy1):
+                self.game_over = True
+                self.show_end_menu()
+                return
 
         # Solo verifica la alineación si no es el salto final a la estrella (next_index < 12)
         if next_index < PLATFORM_COUNT: 
@@ -238,8 +251,15 @@ class RocketGame:
 
             # Must be horizontally aligned (verifica la coordenada X)
             if not self.check_platform_alignment(next_p):
-                # Si no está alineado, se cae a la plataforma actual/suelo
-                self.return_to_current_platform()
+                # 🔴 Si no hay plataforma alineada, vuelve al inicio del juego
+                self.current_platform_index = 0
+                self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
+                self.rocket_y = self.Y_Ground - ROCKET_SIZE[1]
+                self.is_jumping = False
+                self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+                self.canvas.itemconfig(self.score_text, text="Plataforma: 0/9")
+                #reset game
+                self.reset_game()
                 return
 
         # Salto iniciado. 
@@ -247,59 +267,51 @@ class RocketGame:
         self.current_platform_index = next_index
         
     def ascend(self):
-        if not self.is_jumping: return
+        if not self.is_jumping: 
+            return
 
-        # El índice objetivo es self.current_platform_index (1 a 12)
         target_index = self.current_platform_index
-        
-        # Determina la posición Y de aterrizaje
         Y_Ground = self.Y_Ground
-        # La posición Y de la superficie de aterrizaje
         target_y_top = Y_Ground - target_index * JUMP_HEIGHT 
-        # La posición Y (NW anchor) del cohete cuando aterriza
         landing_y_top_of_rocket = target_y_top - ROCKET_SIZE[1] 
-        
-        # 1. Mueve el cohete hacia arriba
+
+        # Mueve hacia arriba
         self.rocket_y -= JUMP_SPEED
-            
-        # 2. Verifica si hemos aterrizado
+
+        # Si ya alcanzó la altura del aterrizaje
         if self.rocket_y <= landing_y_top_of_rocket:
-            # Aterrizaje forzado y preciso
             self.rocket_y = landing_y_top_of_rocket
             self.is_jumping = False
-            
-            # Detiene la plataforma solo si no es el paso final (la estrella)
-            if target_index < PLATFORM_COUNT:
-                target_platform = self.platforms[target_index - 1] 
-                target_platform["speed"] = 0 # Detiene la plataforma
-            
-            self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
-            self.canvas.itemconfig(self.score_text,
-                                   text=f"Plataforma: {target_index}/{PLATFORM_COUNT}")
 
-            # Check for win after landing on the final step (the Star)
-            if target_index == PLATFORM_COUNT:
-                 self.game_over = True
-                 self.show_end_menu()
-                 return
-        
-        # 3. Actualiza la posición visual (solo si sigue saltando)
+            # --- 🟡 Verifica si realmente aterrizó sobre una plataforma ---
+            landed = False
+            if target_index < PLATFORM_COUNT:
+                target_platform = self.platforms[target_index - 1]
+                if self.check_platform_alignment(target_platform):
+                    landed = True
+                    target_platform["speed"] = 0  # Detén plataforma
+
+            if landed:
+                # Actualiza posición y marcador
+                self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+                self.canvas.itemconfig(
+                    self.score_text, text=f"Plataforma: {target_index}/{PLATFORM_COUNT-1}"
+                )
+
+                # Si aterrizó en la estrella (último paso)
+                if target_index == PLATFORM_COUNT:
+                    self.game_over = True
+                    self.show_end_menu()
+            else:
+                # --- 🔴 Falló el aterrizaje: vuelve a posición inicial ---
+                self.current_platform_index = 0
+                self.rocket_y = self.Y_Ground - ROCKET_SIZE[0]
+                self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+                self.canvas.itemconfig(self.score_text, text="Plataforma: 0/9")
+
+        # Mientras esté subiendo, actualiza posición
         if self.is_jumping:
             self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
-        
-
-    def return_to_current_platform(self):
-        # La posición Y de referencia para el "suelo" o Plataforma 0
-        Y_Ground = self.Y_Ground
-        
-        if self.current_platform_index == 0: # Cuando current_platform_index es 0 (suelo)
-            # Cae al fondo del suelo/Plataforma 0
-            self.rocket_y = Y_Ground - self.rocket_h 
-        else:
-            # Vuelve a la plataforma anterior/actual
-            platform = self.platforms[self.current_platform_index - 1] 
-            self.rocket_y = platform["y"] - self.rocket_h
-        self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
     # --- ARDUINO ---
     def update_from_arduino(self):
@@ -334,21 +346,25 @@ class RocketGame:
 
     # --- RESET ---
     def reset_game(self):
-        self.current_platform_index = 0
-        self.is_jumping = False
-        self.vertical_offset = 0
+        self.restart_count += 1  # 🔼 Incrementa contador de reinicios
+
+        # Reinicia variables del juego
         self.game_over = False
-        
-        # Posición inicial del cohete en el suelo/Plataforma 0
-        Y_Ground = self.Y_Ground
-        
+        self.is_jumping = False
+        self.current_platform_index = 0
+        self.jump_cooldown = 0
+
+        # Reposiciona el cohete en el suelo
         self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
-        self.rocket_y = Y_Ground - ROCKET_SIZE[1]
-        
+        self.rocket_y = self.Y_Ground - ROCKET_SIZE[1]
         self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+
+        # Actualiza el marcador
+        self.canvas.itemconfig(self.score_text, text="Plataforma: 0/12")
+
+        # 🟡 Regenera plataformas con velocidad aumentada
         self.spawn_platforms()
-        self.canvas.itemconfig(self.score_text, text=f"Plataforma: 0/{PLATFORM_COUNT}")
-        self.jump_cooldown = 0 # Reinicia cooldown
+
 
     # --- END MENU ---
     def show_end_menu(self):
