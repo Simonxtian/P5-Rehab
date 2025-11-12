@@ -255,7 +255,7 @@ def calibrate_potentiometer():
 
     msg = cal_canvas.create_text(
         200, 50,
-        text="🛠️ Move potentiometer freely\nPress SPACE when done",
+        text=" Move wrist freely\nPress SPACE when done",
         font=("Arial", 12),
         fill="black",
         width=380,
@@ -319,75 +319,6 @@ def calibrate_potentiometer():
     update_calibration()
     root.wait_window(cal_win)
 
-"""
-def calibrate_potentiometer():
-    global min_angle, max_angle
-    min_angle, max_angle = 9999, -9999
-
-    # Create calibration window
-    cal_win = Toplevel(root)
-    cal_win.title("Potentiometer Calibration")
-    cal_win.geometry("400x200")
-    cal_win.resizable(False, False)
-    cal_canvas = Canvas(cal_win, width=400, height=200)
-    cal_canvas.pack()
-
-    msg = cal_canvas.create_text(200, 50, text="🛠️ Move potentiometer from MIN to MAX slowly...",
-                                 font=("Arial", 12), fill="black", width=380, justify="center")
-    angle_text = cal_canvas.create_text(200, 110, text="Angle: --°",
-                                        font=("Arial", 24, "bold"), fill="blue")
-    progress_rect = cal_canvas.create_rectangle(50, 150, 50, 160, fill="green")
-
-    # Prepare serial buffer
-    if arduino:
-        arduino.reset_input_buffer()
-        time.sleep(0.5)
-
-    start_time = time.time()
-    duration = 7  # seconds
-    samples = []
-
-    def update_calibration():
-        nonlocal samples
-        elapsed = time.time() - start_time
-        if elapsed > duration:
-            # End calibration
-            if samples:
-                global min_angle, max_angle
-                min_angle = min(samples)
-                max_angle = max(samples)
-            if max_angle - min_angle < 10:
-                print("⚠️ Calibration range too small. Using default 0–180° range.")
-                min_angle, max_angle = 0, 180
-            cal_canvas.itemconfig(msg, text=f"✅ Done!\nMin: {min_angle:.2f}°, Max: {max_angle:.2f}°")
-            root.after(1500, cal_win.destroy)
-            return
-
-        # Read Arduino serial
-        if arduino:
-            line = arduino.readline().decode('utf-8', errors='ignore').strip()
-            if line:
-                try:
-                    val = float(line)
-                    samples.append(val)
-                    if len(samples) > 400:
-                        samples.pop(0)
-                    cal_canvas.itemconfig(angle_text, text=f"Angle: {val:.2f}°")
-                except ValueError:
-                    pass
-
-        # Progress bar
-        progress = int(300 * min(elapsed / duration, 1))
-        cal_canvas.coords(progress_rect, 50, 150, 50 + progress, 160)
-
-        # Schedule next update
-        cal_win.after(50, update_calibration)
-
-    update_calibration()
-    root.wait_window(cal_win)
-
-    print(f"✅ Calibration done! Min: {min_angle:.2f}°, Max: {max_angle:.2f}°")
-"""
     
 def update_from_arduino():
     global normalized
