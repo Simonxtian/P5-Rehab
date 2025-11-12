@@ -471,7 +471,8 @@ def start_menu(root):
     canvas.create_text(WIDTH // 2, 300,
                        text=("Extend your wrist to jump.\n"
                              "Land on all platforms to reach the star!\n"
-                             "If you fail, you return to the starting position.\n")     )                  font=("Comic Sans MS", 16), fill="white", justify="center")
+                             "If you fail, you return to the starting position.\n"),                       
+                        font=("Comic Sans MS", 16), fill="white", justify="center")
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=lambda: (canvas.destroy(), RocketGame(root))).place(x=WIDTH // 2 - 60, y=500)
 
