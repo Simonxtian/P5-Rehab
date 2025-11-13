@@ -124,7 +124,6 @@ def calibrate_potentiometer():
 
         if arduino:
             try:
-                # 🚀 FIXED: Clear buffer to remove delay
                 while arduino.in_waiting > 0:
                     raw = arduino.readline()
                     if raw:
@@ -146,9 +145,9 @@ def calibrate_potentiometer():
             if max_angle - min_angle < 10:
                 print("⚠️ Range too small, using 30–70° default.")
                 min_angle, max_angle = 30, 70
-            cal_canvas.itemconfig(msg, text=f"✅ Calibrated!\nRange: {min_angle:.2f}° – {max_angle:.2f}°")
+            cal_canvas.itemconfig(msg, text=f" Calibrated!\nRange: {min_angle:.2f}° – {max_angle:.2f}°")
             root.after(1000, cal_win.destroy)
-            print(f"✅ Calibration completed: {min_angle:.2f}° – {max_angle:.2f}°")
+            print(f" Calibration completed: {min_angle:.2f}° – {max_angle:.2f}°")
             return
 
         cal_win.after(50, read_potentiometer_during_calibration)
@@ -178,7 +177,6 @@ class RocketGame:
         
         self.rocket_x = WIDTH // 2 - ROCKET_SIZE[0] // 2
         
-        # 🚀 FIXED: Use ROCKET_SIZE[1] (height) instead of [0] (width)
         self.rocket_y = self.Y_Ground - ROCKET_SIZE[1] 
         self.rocket_item = self.canvas.create_image(self.rocket_x, self.rocket_y, image=self.rocket_img, anchor=NW)
 
@@ -211,7 +209,6 @@ class RocketGame:
 
         self.root.after(UPDATE_MS, self.update)
         if self.arduino:
-            # 🚀 FIXED: Synchronize with game loop (25ms)
             self.root.after(UPDATE_MS, self.update_from_arduino)
 
     # --- PLATFORMS ---
@@ -225,7 +222,6 @@ class RocketGame:
 
         # Generate 9 platforms (for steps 1 to 9)
         for i in range(1, PLATFORM_COUNT): 
-            # 🚀 FIXED: Remove "-30" magic number. Alignment is exact.
             # This is the Y where the rocket FEET should land.
             platform_top_y = bottom_y - (i * JUMP_HEIGHT)-30
             
@@ -293,32 +289,22 @@ class RocketGame:
     def attempt_jump(self):
         if self.is_jumping or self.game_over:
             return
-        
-        # El cooldown de Arduino se maneja con _jump_ready
-        # Mantenemos el cooldown solo para la barra espaciadora
+
         current_time = time.time() * 1000
         if current_time - self.jump_cooldown < self.JUMP_COOLDOWN_MS:
-             # Si el cooldown del ESPACIO está activo, permitir salto de Arduino
-             # A menos que el salto ya esté listo (lo cual es manejado por _jump_ready)
              pass
         self.jump_cooldown = current_time
         
 
         next_index = self.current_platform_index + 1
-        
-        # --- 🟡 Comprueba si el cohete toca la estrella ---
-        # Mover esto al final, después de la plataforma
-        
-        # Comprueba la alineación con la siguiente plataforma (pasos 1 a 9)
+  
         if next_index < PLATFORM_COUNT: 
             next_p = self.platforms[next_index - 1] 
 
             if not self.check_platform_alignment(next_p):
-                # 🔴 Fallo de alineación
-                self.reset_game(reset_count=False) # No incrementar contador en fallo
+                self.reset_game(reset_count=False) 
                 return
         
-        # Comprueba la alineación con la estrella (paso 10)
         elif next_index == PLATFORM_COUNT:
             star_x, star_y = self.canvas.coords(self.star_item)
             star_w, star_h = (50, 50)
@@ -332,7 +318,6 @@ class RocketGame:
                 self.reset_game(reset_count=False)
                 return
 
-        # Salto iniciado. 
         self.is_jumping = True
         self.current_platform_index = next_index
         
@@ -343,28 +328,20 @@ class RocketGame:
         target_index = self.current_platform_index
         Y_Ground = self.Y_Ground
         
-        # Coordenada Y donde el PIE del cohete debe aterrizar
         target_y_landing = Y_Ground - target_index * JUMP_HEIGHT 
-        
-        # Coordenada Y donde la CABEZA (esquina NW) del cohete se encontrará
-        landing_y_top_of_rocket = target_y_landing - ROCKET_SIZE[1] # Usar altura
-
-        # Mueve hacia arriba
+        landing_y_top_of_rocket = target_y_landing - ROCKET_SIZE[1] 
         self.rocket_y -= JUMP_SPEED
 
-        # Si ya alcanzó la altura del aterrizaje
         if self.rocket_y <= landing_y_top_of_rocket:
-            self.rocket_y = landing_y_top_of_rocket # Fija la posición
+            self.rocket_y = landing_y_top_of_rocket 
             self.is_jumping = False
 
             landed = False
-            # Aterrizaje en plataforma (1-9)
             if target_index < PLATFORM_COUNT:
                 target_platform = self.platforms[target_index - 1]
                 if self.check_platform_alignment(target_platform):
                     landed = True
-                    target_platform["speed"] = 0  # Detén plataforma
-            # Aterrizaje en estrella (10)
+                    target_platform["speed"] = 0  
             elif target_index == PLATFORM_COUNT:
                 landed = True
 
@@ -379,7 +356,6 @@ class RocketGame:
                     self.game_over = True
                     self.show_end_menu()
             else:
-                # --- 🔴 Falló el aterrizaje (p.ej. la plataforma se movió) ---
                 self.reset_game(reset_count=False)
 
         if self.is_jumping:
@@ -397,7 +373,6 @@ class RocketGame:
                     self.root.after(UPDATE_MS, self.update_from_arduino)
                     return 
                 
-                # print(f"Angle: {latest_raw} / Min: {min_angle:.1f} / Ready: {self._jump_ready}")
                 
                 try:
                     angle = float(latest_raw)
@@ -454,7 +429,7 @@ class RocketGame:
         win.resizable(False, False)
         c = Canvas(win, width=400, height=300)
         c.pack()
-        c.create_text(200, 100, text="🌟 Mision Done! 🌟", font=("Comic Sans MS", 18, "bold"), fill="black")
+        c.create_text(200, 100, text=" Mision Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
         Button(win, text="RESTART", bg="green", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.reset_game())).place(x=150, y=180)
 
