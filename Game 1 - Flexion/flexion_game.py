@@ -9,7 +9,6 @@ ROD_Y = 20
 ROD_SWEEP_SPEED = 4
 ROPE_MAX_LEN = HEIGHT - 60
 UPDATE_MS = 25
-ANGLE_MIN, ANGLE_MAX = 40.0, 150.0
 ARDUINO_BAUD = 9600
 
 OBJECT_TYPES = [
@@ -18,6 +17,14 @@ OBJECT_TYPES = [
     ("trash", "trash.png", -3)
 ]
 NUM_OBJECTS = 20
+
+# --- Variables Globales ---
+# Se conectará al inicio
+arduino = None
+# Se establecerán en la calibración
+min_angle = 60.0
+max_angle = 120.0
+
 
 # --- IMAGE LOADER ---
 def load_image(path, size=None):
@@ -69,6 +76,85 @@ def connect_arduino():
         print("Serial error:", e)
         return None
 
+
+def calibrate_potentiometer():
+    """Calibrate wrist extension range."""
+    global min_angle, max_angle
+    min_angle, max_angle = 9999, -9999
+
+    cal_win = Toplevel(root)
+    cal_win.title("Potentiometer Calibration")
+    cal_win.geometry("420x220")
+    cal_win.resizable(False, False)
+    cal_canvas = Canvas(cal_win, width=420, height=220)
+    cal_canvas.pack()
+
+    msg = cal_canvas.create_text(
+        210, 60,
+        text="✋ Slowly move your wrist to maximum extension\nPress SPACE when done",
+        font=("Arial", 12),
+        fill="black",
+        width=380,
+        justify="center"
+    )
+    angle_text = cal_canvas.create_text(
+        210, 130,
+        text="Angle: --°",
+        font=("Arial", 24, "bold"),
+        fill="blue"
+    )
+
+    if arduino:
+        arduino.reset_input_buffer()
+        time.sleep(0.5)
+
+    cal_done = {"done": False}
+
+    def finish_calibration(event=None):
+        cal_done["done"] = True
+
+    cal_win.bind("<space>", finish_calibration)
+
+    def read_potentiometer_during_calibration():
+        global min_angle, max_angle
+        latest = None
+
+        if arduino:
+            try:
+                # 🚀 Lógica de lectura de calibración (la que funciona)
+                while arduino.in_waiting > 0:
+                    raw = arduino.readline()
+                    if raw:
+                        try:
+                            latest = float(raw.decode('utf-8').strip())
+                        except ValueError:
+                            continue
+            except Exception:
+                pass
+
+        if latest is not None:
+            cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
+            if latest < min_angle:
+                min_angle = latest
+            if latest > max_angle:
+                max_angle = latest
+
+        if cal_done["done"]:
+            if max_angle - min_angle < 10:
+                print("⚠️ Range too small, using 30–70° default.")
+                min_angle, max_angle = 30, 70
+            cal_canvas.itemconfig(msg, text=f"✅ Calibrated!\nRange: {min_angle:.2f}° – {max_angle:.2f}°")
+            root.after(1000, cal_win.destroy)
+            print(f"✅ Calibration completed: {min_angle:.2f}° – {max_angle:.2f}°")
+            return
+
+        cal_win.after(50, read_potentiometer_during_calibration)
+
+    read_potentiometer_during_calibration()
+    root.wait_window(cal_win)
+
+
+
 # --- GAME CLASS ---
 class FishingGame:
     def __init__(self, root):
@@ -116,16 +202,26 @@ class FishingGame:
         self.rope_extending = False
         self.score = 0
         self.start_time = time.time()
-        self.arduino = connect_arduino()
+        
+        # --- ✅ CORRECCIÓN 1: Usar la conexión global ---
+        global arduino
+        self.arduino = arduino 
+        # ---------------------------------------------
+        
         self.button_pressed = 0
         self.pot_normalized = 0
         self.objects = []
-        self.spawn_objects()
-        self.root.after(UPDATE_MS, self.update)
         self.sweep_speed = ROD_SWEEP_SPEED
         self.level = 1
         self.temp_texts = []
         self.game_over = False
+        
+        # --- ✅ CORRECCIÓN 5: Nuevo estado de juego ---
+        self.waiting_for_retraction = False
+        # ----------------------------------------
+        
+        self.spawn_objects()
+        self.root.after(UPDATE_MS, self.update)
 
         # Start Arduino polling if connected
         if self.arduino:
@@ -150,14 +246,13 @@ class FishingGame:
 
     # --- CONTROLS ---
     def toggle_sweep(self):
+        # Esta función ahora solo para la caña. 
+        # Reanudar se maneja recogiendo la línea.
         if self.sweeping:
             self.sweeping = False
             self.stopped = True
-        elif self.stopped:
-            self.set_rope(0)
-            self.canvas.itemconfig(self.rope_item, state="normal")
-            self.sweeping = True
-            self.stopped = False
+        # El caso 'elif self.stopped:' se ha eliminado 
+        # porque la reanudación ahora es automática al recoger.
 
     def reset_round(self):
         self.score = 0
@@ -169,17 +264,24 @@ class FishingGame:
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
+        # --- ✅ CORRECCIÓN 5: Reiniciar el estado ---
+        self.waiting_for_retraction = False
+        # ------------------------------------------
 
     def adjust_rope(self, event):
+        # Esta función es solo para el control de TECLADO
         if self.arduino is not None or not self.stopped:
-            return  # ignore if Arduino connected
+            return  # ignora si Arduino está conectado
         step = 15
         if event.keysym in ('w', 'Up'):
             self.rope_len = max(0, self.rope_len - step)
         elif event.keysym in ('s', 'Down'):
             self.rope_len = min(ROPE_MAX_LEN, self.rope_len + step)
-        if self.check_hit():
-            self.root.after(700, self.finish_catch_and_resume)
+        
+        # Comprobar la colisión aquí para el teclado
+        if not self.sweeping:
+            self.check_hit()
+        
         self.update_rope()
 
     def rod_tip(self):
@@ -194,9 +296,17 @@ class FishingGame:
     def check_hit(self):
         tip_x, tip_y = self.rod_tip()
         end_y = tip_y + self.rope_len
+
+        if self.rope_len < 5:
+            return False
+
         for obj in list(self.objects):
             ox1, oy1, ox2, oy2 = obj["x"], obj["y"], obj["x"] + obj["w"], obj["y"] + obj["h"]
+            
+            # --- ✅ CORRECCIÓN 4: Lógica de colisión ---
             if ox1 <= tip_x <= ox2 and end_y >= oy1:
+            # ------------------------------------------
+                
                 self.canvas.delete(obj["id"])
                 self.objects.remove(obj)
                 self.score += obj["pts"]
@@ -207,72 +317,107 @@ class FishingGame:
                 )
                 self.temp_texts.append(text_id)
                 self.canvas.itemconfig(self.rope_item, state="hidden")
+                
                 if self.all_good_collected():
                     self.sweeping = False
                     self.stopped = True
                     self.game_over = True
                     self.root.after(500, self.show_end_menu)
                 else:
+                    # Pausa antes de reanudar
+                    self.sweeping = False
+                    self.stopped = True
+                    # --- ✅ CORRECCIÓN 5: Llamar a la nueva función ---
                     self.root.after(500, self.finish_catch_and_resume)
                 return True
         return False
     
     def set_rope(self, length):
         self.rope_len = max(0, min(ROPE_MAX_LEN, length))
-        self.update_rope()
+        # self.update_rope() # Se llama desde el bucle principal
 
+    # --- ✅ CORRECCIÓN 5: Nueva función ---
     def finish_catch_and_resume(self):
-        self.set_rope(0)
+        """Se llama después de una captura. Muestra la cuerda y espera la retracción."""
         self.canvas.itemconfig(self.rope_item, state="normal")
-        self.sweeping = True
-        self.stopped = False
+        self.waiting_for_retraction = True
+        # El juego está ahora en modo "espera"
+        # self.sweeping sigue siendo False
+    # ------------------------------------
 
     # --- ARDUINO POLLING ---
     def update_from_arduino(self):
         if self.arduino:
             latest = None
             try:
-                while True:
+                # --- ✅ CORRECCIÓN 2: Lógica de lectura idéntica a la calibración ---
+                while self.arduino.in_waiting > 0:
                     raw = self.arduino.readline()
-                    if not raw:
-                        break
+                    if not raw: continue
                     s = raw.decode('utf-8', errors='ignore').strip()
-                    if not s:
-                        continue
+                    if not s: continue
                     try:
-                        angle = float(s)  # directly convert the line to float
+                        angle = float(s)
                         latest = angle
                     except ValueError:
-                        continue  # ignore non-numeric lines
+                        continue
+                # ----------------------------------------------------------------
 
                 if latest is not None:
-                    # Map 40°–150° to rope length (0–ROPE_MAX_LEN)
-                    angle = max(40.0, min(150.0, latest))
-                    self.pot_normalized = (angle - 40.0) / (150.0 - 40.0)  # 0 to 1
-                    y_pos = self.pot_normalized * ROPE_MAX_LEN
-                    self.set_rope(int(y_pos))
+                    angle = max(min_angle, min(max_angle, latest))
+                    self.pot_normalized = (angle - min_angle) / (max_angle - min_angle)
 
-            except Exception:
+                    # --- ✅ CORRECCIÓN 3: Solo actualiza si no se está moviendo ---
+                    if not self.sweeping:
+                        y_pos = self.pot_normalized * ROPE_MAX_LEN
+                        self.set_rope(int(y_pos))
+                    # ----------------------------------------------------------
+
+            except Exception as e:
+                print(f"Error en update_from_arduino: {e}")
                 pass
 
         self.root.after(50, self.update_from_arduino)
 
     # --- UPDATE LOOP ---
+    # --- ✅ CORRECCIÓN 5: Bucle de actualización con 3 estados ---
     def update(self):
         self.root.after(UPDATE_MS, self.update)
         if self.game_over: return
 
-        if self.sweeping:
+        if self.waiting_for_retraction:
+            # --- ESTADO 1: Esperando que el usuario recoja la línea ---
+            # La caña está parada (sweeping=False).
+            # update_from_arduino() sigue actualizando self.rope_len.
+            
+            # (El potenciómetro sigue controlando la línea)
+            
+            if self.rope_len < 10:  # Si el usuario ha subido la línea
+                self.waiting_for_retraction = False
+                self.sweeping = True
+                self.stopped = False
+
+        elif self.sweeping:
+            # --- ESTADO 2: Moviendo caña ---
             self.rod_x += self.rod_dir * self.sweep_speed
             if self.rod_x < 0: self.rod_dir = 1
             if self.rod_x > WIDTH - self.rod_img.width(): self.rod_dir = -1
             self.canvas.coords(self.rod_item, self.rod_x, ROD_Y)
+            
+            # Forzamos la cuerda a estar recogida mientras se mueve
+            self.set_rope(0)
+        
+        else:
+            # --- ESTADO 3: Parado (bajando la línea) ---
+            # (sweeping=False y waiting_for_retraction=False)
+            # Solo comprobamos colisiones cuando estamos parados
             if self.check_hit():
-                if not self.game_over:
-                    self.sweeping = False
-                    self.stopped = True
-                return
+                # check_hit se encarga de cambiar el estado
+                pass # Simplemente dejamos que el bucle continúe
+        
+        # Actualizamos el dibujo de la cuerda en CUALQUIER estado
         self.update_rope()
+    # -----------------------------------------------------------
 
     # --- END MENU ---
     def show_end_menu(self):
@@ -314,14 +459,14 @@ def start_menu(root):
     canvas.pack()
     canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#a9d8ff", outline="")
     canvas.create_text(WIDTH//2, 150, text="🎣 Fishing Flexion Game 🎣",
-                       font=("Comic Sans MS", 36, "bold"), fill="navy")
+                        font=("Comic Sans MS", 36, "bold"), fill="navy")
     canvas.create_text(WIDTH//2, 300,
-                       text=("Move the rod left and right automatically.\n"
-                             "Press the button to stop the rod.\n"
-                             "Move your wrist downward (flexion) to lower the fishing line.\n"
-                             "Catch fish and gold, avoid trash.\n"
-                             "When you catch all the good items, you win!"),
-                       font=("Comic Sans MS", 16), fill="black", justify="center")
+                        text=("Move the rod left and right automatically.\n"
+                                "Press SPACE to stop the rod.\n"
+                                "Move your wrist downward (flexion) to lower the fishing line.\n"
+                                "Catch fish and gold, avoid trash.\n"
+                                "When you catch all the good items, you win!"),
+                        font=("Comic Sans MS", 16), fill="black", justify="center")
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=lambda: (canvas.destroy(), FishingGame(root))).place(x=340, y=500)
 
@@ -329,5 +474,14 @@ def start_menu(root):
 if __name__ == "__main__":
     root = Tk()
     root.title("Fishing Flexion Game")
+    
+    # --- ✅ Conectar y Calibrar PRIMERO ---
+    arduino = connect_arduino() # Se guarda en la variable global
+    if arduino:
+        calibrate_potentiometer()
+    else: 
+        print(" Arduino not connected, using keyboard controls.")
+    # -----------------------------------
+    
     start_menu(root)
     root.mainloop()
