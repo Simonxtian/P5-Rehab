@@ -13,7 +13,7 @@ UPDATE_MS = 25
 ARDUINO_BAUD = 9600
 
 OBJECT_TYPES = [
-    ("gold", "gold.png", +5),
+    ("gold", "gold.png", +3),
     ("fish", "fish.png", +2),
     ("trash", "trash.png", -3)
 ]
@@ -144,7 +144,7 @@ def calibrate_potentiometer():
 
     msg = cal_canvas.create_text(
         210, 60,
-        text=" Slowly move your wrist to maximum extension\nPress SPACE when done",
+        text=" Slowly move your wrist to maximum flexion\nPress SPACE when done",
         font=("Arial", 12),
         fill="black",
         width=380,
@@ -169,39 +169,40 @@ def calibrate_potentiometer():
     cal_win.bind("<space>", finish_calibration)
 
     def read_potentiometer_during_calibration():
-        global min_angle, max_angle
-        latest = None
+            global min_angle, max_angle
+            latest = None
 
-        if arduino:
-            try:
-                # 🚀 Lógica de lectura de calibración (la que funciona)
-                while arduino.in_waiting > 0:
-                    raw = arduino.readline()
-                    if raw:
-                        try:
-                            latest = float(raw.decode('utf-8').strip())
-                        except ValueError:
-                            continue
-            except Exception:
-                pass
+            if arduino:
+                try:
+                    while arduino.in_waiting > 0:
+                        raw = arduino.readline()
+                        if raw:
+                            try:
+                                latest = float(raw.decode('utf-8').strip())
+                            except ValueError:
+                                continue
+                except Exception:
+                    pass
 
-        if latest is not None:
-            cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
-            if latest < min_angle:
-                min_angle = latest
-            if latest > max_angle:
-                max_angle = latest
+            if latest is not None:
+                cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
+                if latest < min_angle:
+                    min_angle = latest
+                if latest > max_angle:
+                    max_angle = latest
 
-        if cal_done["done"]:
-            if max_angle - min_angle < 10:
-                print(" Range too small, using 30–70° default.")
-                min_angle, max_angle = 30, 70
-            cal_canvas.itemconfig(msg, text=f" Calibrated!\nRange: {min_angle:.2f}° – {max_angle:.2f}°")
-            root.after(1000, cal_win.destroy)
-            print(f" Calibration completed: {min_angle:.2f}° – {max_angle:.2f}°")
-            return
+            if cal_done["done"]:
+                total_range = max_angle - min_angle
+                if max_angle - min_angle < 10:
+                    print("⚠️ Range too small, using 30–70° default.")
+                    min_angle, max_angle = 30, 70
+                    total_range = max_angle - min_angle
+                cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")            
+                root.after(1000, cal_win.destroy)
+                print(f" Calibration completed: Total range of {total_range:.2f}°")            
+                return
 
-        cal_win.after(50, read_potentiometer_during_calibration)
+            cal_win.after(50, read_potentiometer_during_calibration)
 
     read_potentiometer_during_calibration()
     root.wait_window(cal_win)
