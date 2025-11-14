@@ -17,7 +17,7 @@ OBJECT_TYPES = [
     ("fish", "fish.png", +2),
     ("trash", "trash.png", -3)
 ]
-NUM_OBJECTS = 20
+NUM_OBJECTS = 5
 
 # --- Variables Globales ---
 # Se conectará al inicio
@@ -462,11 +462,10 @@ class FishingGame:
         
         total_time = round(time.time() - self.start_time, 1)
         
-        # --- HIGHSCORE LOGIC ---
-        global highscore
         # Update highscore in memory if it's beaten (for display)
         if self.score > highscore:
             highscore = self.score
+            save_highscore(highscore)
         # --- END HIGHSCORE LOGIC ---
 
         win = Toplevel(self.root)
