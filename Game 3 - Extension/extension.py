@@ -471,7 +471,7 @@ class RocketGame:
         self.rocket_y = self.Y_Ground - ROCKET_SIZE[1]
         self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
-        self.canvas.itemconfig(self.score_text, text="Plataform: 0/9")
+        self.canvas.itemconfig(self.score_text, text="Plataform: 0/9") #Score text
         self.spawn_platforms()
 
 
