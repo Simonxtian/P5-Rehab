@@ -165,6 +165,94 @@ def connect_arduino():
         arduino = None
         return None
 
+def calibrate_potentiometer():
+    global min_angle, max_angle
+    min_angle, max_angle = 9999, -9999  # start with extreme values
+
+    cal_win = Toplevel(root)
+    cal_win.title("Potentiometer Calibration")
+    cal_win.geometry("400x200")
+    cal_win.resizable(False, False)
+    cal_canvas = Canvas(cal_win, width=400, height=200)
+    cal_canvas.pack()
+
+    msg = cal_canvas.create_text(
+        200, 50,
+        text=" Move wrist freely\nPress SPACE when done",
+        font=("Arial", 12),
+        fill="black",
+        width=380,
+        justify="center"
+    )
+    angle_text = cal_canvas.create_text(
+        200, 110,
+        text="Angle: --°",
+        font=("Arial", 24, "bold"),
+        fill="blue"
+    )
+
+    if arduino:
+        arduino.reset_input_buffer()
+        time.sleep(0.5)
+
+    cal_done = {"done": False}
+
+    def finish_calibration(event=None):
+        cal_done["done"] = True
+
+    cal_win.bind("<space>", finish_calibration)
+
+    def update_calibration():
+        global min_angle, max_angle
+        latest = None
+
+        if arduino:
+            try:
+                while arduino.in_waiting > 0:
+                    raw = arduino.readline()
+                    if raw:
+                        try:
+                            latest = float(raw.decode('utf-8').strip())
+                        except ValueError:
+                            continue
+            except Exception:
+                pass
+
+        if latest is not None:
+            # Update live display
+            cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
+            # Update min/max dynamically
+            if latest < min_angle:
+                min_angle = latest
+            if latest > max_angle:
+                max_angle = latest
+
+        if cal_done["done"]:
+            # Calculate the total range (the difference)
+            total_range = max_angle - min_angle
+
+            # Ensure a minimum range
+            if total_range < 10:
+                print("⚠️ Calibration range too small. Using default 0–180° range.")
+                min_angle, max_angle = 0, 180
+                # Recalculate range based on the default
+                total_range = max_angle - min_angle
+            
+            # Display the calculated total range
+            cal_canvas.itemconfig(msg, text=f"✅ Done!\nTotal Range: {total_range:.2f}°")
+            root.after(1000, cal_win.destroy)
+            
+            # Print the calculated total range
+            print(f" Calibration done! Total range of {total_range:.2f}°")
+            
+            # --- END OF MODIFICATIONS ---
+            return
+
+        cal_win.after(20, update_calibration)
+
+    update_calibration()
+    root.wait_window(cal_win)
+    
 # --- Game Classes ---
 class Bird:
     def __init__(self, canvas_obj, x, y, color):
@@ -522,5 +610,7 @@ def main():
 
 # --- Run ---
 connect_arduino()
+if arduino:
+    calibrate_potentiometer()
 start_menu()
 root.mainloop()
