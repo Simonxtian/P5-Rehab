@@ -142,12 +142,14 @@ def calibrate_potentiometer():
                 max_angle = latest
 
         if cal_done["done"]:
+            total_range = max_angle - min_angle
             if max_angle - min_angle < 10:
                 print("⚠️ Range too small, using 30–70° default.")
                 min_angle, max_angle = 30, 70
-            cal_canvas.itemconfig(msg, text=f" Calibrated!\nRange: {min_angle:.2f}° – {max_angle:.2f}°")
+                total_range = max_angle - min_angle
+            cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")            
             root.after(1000, cal_win.destroy)
-            print(f" Calibration completed: {min_angle:.2f}° – {max_angle:.2f}°")
+            print(f" Calibration completed: Total range of {total_range:.2f}°")            
             return
 
         cal_win.after(50, read_potentiometer_during_calibration)
