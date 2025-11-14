@@ -40,13 +40,13 @@ canvas = Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
 # --- Highscore handling ---
-HIGHSCORE_FILE = "highscore.json"
+HIGHSCORE_FILE = "highscore_all.json"
 
 def load_highscore():
-    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore.json"))
+    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore_all.json"))
     """Load highscore from a JSON file located next to this script; create if missing."""
     try:
-        file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+        file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
         # If file doesn't exist, create it with default highscore 0
         if not os.path.exists(file_path):
             with open(file_path, "w") as f:
@@ -67,7 +67,7 @@ def save_highscore(score):
     if score >= highscore:
         """Save highscore to a JSON file located next to this script using an atomic replace."""
         try:
-            file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+            file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
             # Ensure directory exists (usually it's the script dir, but be safe)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             tmp_path = file_path + ".tmp"
