@@ -252,6 +252,7 @@ def calibrate_potentiometer():
 
     update_calibration()
     root.wait_window(cal_win)
+    
 # --- Game Classes ---
 class Bird:
     def __init__(self, canvas_obj, x, y, color):
