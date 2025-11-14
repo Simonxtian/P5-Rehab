@@ -2,7 +2,7 @@ import json
 import os, sys, time, glob, serial
 from random import randint, choice
 from tkinter import Tk, Canvas, Button, NW, Toplevel
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw # Moved ImageDraw here for consistency
 
 # --- CONFIG ---
 WIDTH, HEIGHT = 800, 600
@@ -51,7 +51,8 @@ def load_highscore():
 
 
 def save_highscore(score):
-    if score >= highscore:
+    global highscore # Ensure we are comparing against the loaded highscore
+    if score > highscore: # Only save if it's a new highscore
         """Save highscore to a JSON file located next to this script using an atomic replace."""
         try:
             file_path = os.path.join(os.path.dirname(__file__), "highscore_flex.json")
@@ -68,6 +69,8 @@ def save_highscore(score):
                     # os.fsync may not be available on some platforms or file descriptors
                     pass
             os.replace(tmp_path, file_path)
+            highscore = score # Update the global variable
+            print(f"New highscore ({score}) saved!")
         except Exception as e:
             print("Error saving highscore:", e)
     else:
@@ -75,7 +78,7 @@ def save_highscore(score):
         pass
 
 
-
+# Load the highscore once at the start
 highscore = load_highscore()
 
 
@@ -88,7 +91,6 @@ def load_image(path, size=None):
             img = img.resize(size, resample_filter)
         return ImageTk.PhotoImage(img)
     except Exception:
-        from PIL import ImageDraw
         w, h = size if size else (60, 60)
         img = Image.new("RGBA", (w, h), (200, 200, 200, 255))
         d = ImageDraw.Draw(img)
@@ -197,9 +199,9 @@ def calibrate_potentiometer():
                     print("⚠️ Range too small, using 30–70° default.")
                     min_angle, max_angle = 30, 70
                     total_range = max_angle - min_angle
-                cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")            
+                cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")        
                 root.after(1000, cal_win.destroy)
-                print(f" Calibration completed: Total range of {total_range:.2f}°")            
+                print(f" Calibration completed: Total range of {total_range:.2f}°")        
                 return
 
             cal_win.after(50, read_potentiometer_during_calibration)
@@ -237,7 +239,7 @@ class FishingGame:
         # Buttons
         self.stop_btn = Button(root, text="STOP/RESUME", command=self.toggle_sweep)
         self.stop_btn.pack(side="left", padx=10)
-        self.reset_btn = Button(root, text="RESET", command=self.reset_round)
+        self.reset_btn = Button(root, text="RESET LEVEL", command=self.reset_round) # Changed text for clarity
         self.reset_btn.pack(side="left", padx=10)
 
         # Controls
@@ -254,7 +256,7 @@ class FishingGame:
         self.sweeping = True
         self.stopped = False
         self.rope_extending = False
-        self.score = 0
+        self.score = 0 # This will be the total session score
         self.start_time = time.time()
         
         global arduino
@@ -296,16 +298,27 @@ class FishingGame:
 
     # --- CONTROLS ---
     def toggle_sweep(self):
+        """Toggles the rod sweeping left and right."""
+        # Don't allow toggling while hook is retracting
+        if self.waiting_for_retraction:
+            return
+
         if self.sweeping:
+            # Stop the sweep
             self.sweeping = False
             self.stopped = True
+        else:
+            # Resume the sweep
+            self.sweeping = True
+            self.stopped = False
 
     def reset_round(self):
-        self.score = 0
-        self.start_time = time.time()
+        """Resets the current level, but keeps the total score."""
+        # self.score = 0  <-- REMOVED. Score is now persistent.
+        self.start_time = time.time() # Reset level timer
         self.rope_len = 0
         self.spawn_objects()
-        self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
+        self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}") # Update text
         self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
         for tid in self.temp_texts:
             self.canvas.delete(tid)
@@ -349,7 +362,7 @@ class FishingGame:
                 
                 self.canvas.delete(obj["id"])
                 self.objects.remove(obj)
-                self.score += obj["pts"]
+                self.score += obj["pts"] # Add to persistent score
                 self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
                 text_id = self.canvas.create_text(
                     (ox1 + ox2) // 2, oy1 - 20,
@@ -377,7 +390,7 @@ class FishingGame:
         """Se llama después de una captura. Muestra la cuerda y espera la retracción."""
         self.canvas.itemconfig(self.rope_item, state="normal")
         self.waiting_for_retraction = True
-   
+    
     # --- ARDUINO POLLING ---
     def update_from_arduino(self):
         if self.arduino:
@@ -414,7 +427,7 @@ class FishingGame:
         if self.game_over: return
 
         if self.waiting_for_retraction:
-     
+        
             if self.rope_len < 10:  
                 self.waiting_for_retraction = False
                 self.sweeping = True
@@ -433,6 +446,12 @@ class FishingGame:
                 pass #
         self.update_rope()
 
+    # --- NEW FUNCTION TO SAVE AND EXIT ---
+    def exit_and_save(self):
+        """Saves the highscore if needed, then closes the game."""
+        save_highscore(self.score)
+        self.root.destroy()
+
     # --- END MENU ---
     def show_end_menu(self):
         self.sweeping = False
@@ -440,20 +459,32 @@ class FishingGame:
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
+        
         total_time = round(time.time() - self.start_time, 1)
+        
+        # --- HIGHSCORE LOGIC ---
+        global highscore
+        # Update highscore in memory if it's beaten (for display)
+        if self.score > highscore:
+            highscore = self.score
+        # --- END HIGHSCORE LOGIC ---
+
         win = Toplevel(self.root)
-        win.title("Game Over")
+        win.title("Level Complete!")
         win.resizable(False, False)
-        c = Canvas(win, width=400, height=300)
+        c = Canvas(win, width=400, height=350) # Made window taller
         c.pack()
-        msg = f" You caught all good items!\n\nScore: {self.score}\nTime: {total_time}s"
-        c.create_text(200, 100, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black")
+        
+        # --- UPDATED MESSAGE ---
+        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {highscore}\nTime: {total_time}s"
+        c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black", justify="center")
+        # --- END UPDATED MESSAGE ---
 
         def _play_again():
             win.destroy()
             self.level += 1
             self.sweep_speed = ROD_SWEEP_SPEED + (self.level - 1) * 1.2
-            self.reset_round()
+            self.reset_round() # This no longer resets score
             self.rod_x = 100
             self.rod_dir = 1
             self.set_rope(0)
@@ -462,10 +493,13 @@ class FishingGame:
             self.sweeping = True
             self.stopped = False
 
-        Button(win, text="PLAY AGAIN", bg="green", fg="white",
-            font=("Arial", 14, "bold"), command=_play_again).place(x=120, y=180)
+        Button(win, text="NEXT LEVEL", bg="green", fg="white",
+            font=("Arial", 14, "bold"), command=_play_again).place(x=70, y=250, width=120, height=40)
+        
+        # --- UPDATED EXIT BUTTON ---
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
-            command=self.root.destroy).place(x=250, y=180)
+            command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
+        # --- END UPDATED EXIT BUTTON ---
 
 # --- START MENU ---
 def start_menu(root):

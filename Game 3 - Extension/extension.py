@@ -595,7 +595,9 @@ def start_menu(root):
     canvas.create_text(WIDTH // 2, 300,
                        text=("Extend your wrist to jump.\n"
                              "Land on all platforms to reach the star!\n"
-                             "If you fail, you return to the starting position.\n"),
+                             "Each successful landing gives you 1 point.\n"
+                             "If you fail, you lose a life.\n"
+                             "You have 3 lives. Good luck!"),
                         font=("Comic Sans MS", 16), fill="white", justify="center")
     
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
