@@ -7,7 +7,7 @@ from PIL import Image, ImageTk, ImageDraw
 # --- CONFIG ---
 HEIGHT, WIDTH = 700, 600
 STAR_Y = 5  # Y coordinate of the top edge of the star
-PLATFORM_COUNT = 9  # Total steps needed (10 platforms + 1 star)
+PLATFORM_COUNT = 9  # Total steps needed (8 platforms + 1 star)
 PLATFORM_WIDTH, PLATFORM_HEIGHT = 180, 50
 PLATFORM_MIN_SPEED, PLATFORM_MAX_SPEED = 1.5, 3.5
 ARDUINO_BAUD = 9600  # 🚀 FIXED: Higher baud rate to remove delay
@@ -15,9 +15,9 @@ ROCKET_SIZE = (50, 70)  # (width, height)
 
 # Vertical layout constants
 Y_REF_BOTTOM = HEIGHT - 10  # 690: baseline (rocket feet on platform 0)
-Y_REF_TOP = STAR_Y           # 5: line where the top of the star aligns
+Y_REF_TOP = STAR_Y          # 5: line where the top of the star aligns
 
-# Calculate JUMP_HEIGHT for 10 uniform vertical steps
+# Calculate JUMP_HEIGHT for 9 uniform vertical steps
 TOTAL_VERTICAL_DISTANCE = (Y_REF_BOTTOM - Y_REF_TOP)  # 685
 JUMP_HEIGHT = (TOTAL_VERTICAL_DISTANCE / PLATFORM_COUNT)  # 68.5
 
@@ -78,7 +78,7 @@ def save_highscore(score):
         pass
 
 
-
+# Load the highscore once at the start
 highscore = load_highscore()
 
 # --- IMAGE LOADER ---
@@ -197,12 +197,12 @@ def calibrate_potentiometer():
         if cal_done["done"]:
             total_range = max_angle - min_angle
             if max_angle - min_angle < 10:
-                print("⚠️ Range too small, using 30–70° default.")
+                print(" Range too small, using 30–70° default.")
                 min_angle, max_angle = 30, 70
                 total_range = max_angle - min_angle
-            cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")            
+            cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")
             root.after(1000, cal_win.destroy)
-            print(f" Calibration completed: Total range of {total_range:.2f}°")            
+            print(f" Calibration completed: Total range of {total_range:.2f}°")
             return
 
         cal_win.after(50, read_potentiometer_during_calibration)
@@ -239,7 +239,9 @@ class RocketGame:
         self.star_item = self.canvas.create_image(WIDTH // 2 - 25, STAR_Y, image=self.star_img, anchor=NW) 
 
         # Score
-        self.score_text = self.canvas.create_text(75, 24, text="Platform: 0/9", font=("Arial", 16), fill="white")
+        self.score_text = self.canvas.create_text(
+            75, 24, text="Score: 0", font=("Arial", 16), fill="white"
+        )
 
 
         # Controls
@@ -248,6 +250,7 @@ class RocketGame:
         root.bind("<Right>", self.keyboard_move)
 
         # Game variables
+        self.current_score = 0  # Score for this game
         self.current_platform_index = 0
         self.game_over = False
         self.is_jumping = False
@@ -275,7 +278,8 @@ class RocketGame:
 
         bottom_y = self.Y_Ground
 
-        # Generate 9 platforms (for steps 1 to 9)
+        # Generate 8 platforms (for steps 1 to 8)
+        # PLATFORM_COUNT is 9 (8 platforms + 1 star)
         for i in range(1, PLATFORM_COUNT): 
             # This is the Y where the rocket FEET should land.
             platform_top_y = bottom_y - (i * JUMP_HEIGHT)-30
@@ -299,7 +303,7 @@ class RocketGame:
                 "speed": speed, "dir": direction
             })
 
-        # Reposition the star
+        # Reposition the star (at the 9th position)
         y_star_feet = bottom_y - PLATFORM_COUNT * JUMP_HEIGHT 
         x_star = WIDTH // 2 - 25
         # Draw the star in its final position (Y_REF_TOP)
@@ -352,14 +356,17 @@ class RocketGame:
         
 
         next_index = self.current_platform_index + 1
-  
+ 
+        # Check jump to platforms 1-8
         if next_index < PLATFORM_COUNT: 
+            # platforms list is 0-indexed, so platform 1 is at index 0
             next_p = self.platforms[next_index - 1] 
 
             if not self.check_platform_alignment(next_p):
                 self.reset_game(reset_count=False) 
                 return
         
+        # Check jump to the star (index 9)
         elif next_index == PLATFORM_COUNT:
             star_x, star_y = self.canvas.coords(self.star_item)
             star_w, star_h = (50, 50)
@@ -392,22 +399,29 @@ class RocketGame:
             self.is_jumping = False
 
             landed = False
+            # Landed on a platform (index 1-8)
             if target_index < PLATFORM_COUNT:
                 target_platform = self.platforms[target_index - 1]
                 if self.check_platform_alignment(target_platform):
                     landed = True
-                    target_platform["speed"] = 0  
+                    target_platform["speed"] = 0
+            # Landed on the star (index 9)
             elif target_index == PLATFORM_COUNT:
                 landed = True
 
             if landed:
-                self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+                # --- MODIFICATION: ADD 1 POINT ---
+                self.current_score += 1
                 self.canvas.itemconfig(
-                    self.score_text, text=f"Plataform: {target_index}/9"
+                    self.score_text, text=f"Score: {self.current_score}"
                 )
+                # --- END MODIFICATION ---
 
+                self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
+
+                # Reached the star
                 if target_index == PLATFORM_COUNT:
-                    self.canvas.itemconfig(self.score_text, text="YOU WIN!")
+                    self.canvas.itemconfig(self.score_text, text=f"YOU WIN! Score: {self.current_score}")
                     self.game_over = True
                     self.show_end_menu()
             else:
@@ -465,6 +479,7 @@ class RocketGame:
 
         self.game_over = False
         self.is_jumping = False
+        self.current_score = 0  # Reset score to 0
         self.current_platform_index = 0
         self.jump_cooldown = 0
         self._jump_ready = True 
@@ -473,20 +488,53 @@ class RocketGame:
         self.rocket_y = self.Y_Ground - ROCKET_SIZE[1]
         self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
-        self.canvas.itemconfig(self.score_text, text="Plataform: 0/9")
+        self.canvas.itemconfig(self.score_text, text="Score: 0") # Reset score text
         self.spawn_platforms()
 
 
     # --- END MENU ---
     def show_end_menu(self):
+        # --- NEW HIGHSCORE LOGIC ---
+        global highscore
+        is_new_highscore = False
+        
+        # Check if the score from this game is the new highscore
+        if self.current_score > highscore:
+            highscore = self.current_score  # Update the global variable
+            save_highscore(highscore)       # Save to the JSON file
+            is_new_highscore = True
+        # --- END NEW LOGIC ---
+
         win = Toplevel(self.root)
         win.title("Game Over")
         win.resizable(False, False)
-        c = Canvas(win, width=400, height=300)
+        
+        c = Canvas(win, width=400, height=300) 
         c.pack()
-        c.create_text(200, 100, text=" Mision Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
+        
+        c.create_text(200, 60, text=" Mision Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
+
+        # --- UPDATED TEXT ---
+        # Show the score for this round
+        c.create_text(200, 110, text=f"Your Score: {self.current_score}", 
+                      font=("Arial", 16), fill="black")
+        
+        # Show the all-time highscore
+        c.create_text(200, 150, text=f" Highscore: {highscore}", 
+                      font=("Arial", 16), fill="blue")
+
+        # Add a message if they got a new highscore
+        if is_new_highscore:
+            c.create_text(200, 180, text="NEW HIGH SCORE!", 
+                          font=("Arial", 14, "bold"), fill="#e67e22") # Orange color
+        # --- END UPDATED TEXT ---
+
+        # Position buttons lower
         Button(win, text="RESTART", bg="green", fg="white", font=("Arial", 14, "bold"),
-               command=lambda: (win.destroy(), self.reset_game())).place(x=150, y=180)
+               command=lambda: (win.destroy(), self.reset_game())).place(x=70, y=230, width=120, height=40)
+
+        Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
+               command=lambda: (win.destroy(), self.root.destroy())).place(x=210, y=230, width=120, height=40)
 
 
 # --- START MENU ---
@@ -501,8 +549,11 @@ def start_menu(root):
     canvas.create_text(WIDTH // 2, 300,
                        text=("Extend your wrist to jump.\n"
                              "Land on all platforms to reach the star!\n"
-                             "If you fail, you return to the starting position.\n"),                       
+                             "If you fail, you return to the starting position.\n"),
                         font=("Comic Sans MS", 16), fill="white", justify="center")
+    
+    # --- MODIFICATION: REMOVED HIGHSCORE DISPLAY FROM START MENU ---
+    
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=lambda: (canvas.destroy(), RocketGame(root))).place(x=WIDTH // 2 - 60, y=500)
 
