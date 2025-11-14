@@ -510,7 +510,7 @@ def start_menu(root):
                         font=("Comic Sans MS", 36, "bold"), fill="navy")
     canvas.create_text(WIDTH//2, 300,
                         text=("Move the rod left and right automatically.\n"
-                                "Press SPACE to stop the rod.\n"
+                                "Press the button to stop the rod.\n"
                                 "Move your wrist downward (flexion) to lower the fishing line.\n"
                                 "Catch fish and gold, avoid trash.\n"
                                 "When you catch all the good items, you win!"),
