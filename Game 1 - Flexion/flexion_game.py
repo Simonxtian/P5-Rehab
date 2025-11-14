@@ -462,6 +462,8 @@ class FishingGame:
         
         total_time = round(time.time() - self.start_time, 1)
         
+        # --- HIGHSCORE LOGIC ---
+        global highscore
         # Update highscore in memory if it's beaten (for display)
         if self.score > highscore:
             highscore = self.score
