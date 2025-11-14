@@ -1,3 +1,4 @@
+import json
 import os, sys, time, glob, serial
 from random import randint, choice
 from tkinter import Tk, Canvas, Button, NW, Toplevel
@@ -27,6 +28,58 @@ ANGLE_MIN, ANGLE_MAX = 40.0, 70.0
 arduino = None
 min_angle = 30.0
 max_angle = 70.0
+
+# --- Highscore handling ---
+HIGHSCORE_FILE = "highscore_extension.json"
+
+def load_highscore():
+    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore_extension.json"))
+    """Load highscore from a JSON file located next to this script; create if missing."""
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), "highscore_extension.json")
+        # If file doesn't exist, create it with default highscore 0
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                json.dump({"highscore": 0}, f)
+            return 0
+
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            return int(data.get("highscore", 0))
+    except Exception as e:
+        # Log and return 0 on any error to keep game running
+        print("Error loading highscore:", e)
+        return 0
+    
+
+
+def save_highscore(score):
+    if score >= highscore:
+        """Save highscore to a JSON file located next to this script using an atomic replace."""
+        try:
+            file_path = os.path.join(os.path.dirname(__file__), "highscore_extension.json")
+            # Ensure directory exists (usually it's the script dir, but be safe)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            tmp_path = file_path + ".tmp"
+            # Write to a temp file and atomically replace the target to avoid partial writes
+            with open(tmp_path, "w") as f:
+                json.dump({"highscore": int(score)}, f)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except Exception:
+                    # os.fsync may not be available on some platforms or file descriptors
+                    pass
+            os.replace(tmp_path, file_path)
+        except Exception as e:
+            print("Error saving highscore:", e)
+    else:
+        # No update needed
+        pass
+
+
+
+highscore = load_highscore()
 
 # --- IMAGE LOADER ---
 def load_image(path, size=None):

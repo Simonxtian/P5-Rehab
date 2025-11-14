@@ -40,13 +40,13 @@ canvas = Canvas(root, width=WIDTH, height=HEIGHT)
 canvas.pack()
 
 # --- Highscore handling ---
-HIGHSCORE_FILE = "highscore.json"
+HIGHSCORE_FILE = "highscore_all.json"
 
 def load_highscore():
-    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore.json"))
+    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore_all.json"))
     """Load highscore from a JSON file located next to this script; create if missing."""
     try:
-        file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+        file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
         # If file doesn't exist, create it with default highscore 0
         if not os.path.exists(file_path):
             with open(file_path, "w") as f:
@@ -67,7 +67,7 @@ def save_highscore(score):
     if score >= highscore:
         """Save highscore to a JSON file located next to this script using an atomic replace."""
         try:
-            file_path = os.path.join(os.path.dirname(__file__), "highscore.json")
+            file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
             # Ensure directory exists (usually it's the script dir, but be safe)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             tmp_path = file_path + ".tmp"
@@ -118,7 +118,7 @@ def load_image(path, size, fallback="rect"):
 bg_photo         = load_image(r"Game 2 - All\game_background.jpg", (WIDTH, HEIGHT))
 basket_photo     = load_image(r"Game 2 - All\basket.png", (80, 100), fallback="basket")
 blue_bird_photo  = load_image(r"Game 2 - All\blue_bird.png", (70, 50), fallback="blue")
-bomb_photo   = load_image(r"Game 2 - All\Bomb.png", (50, 50), fallback="red")
+bomb_photo       = load_image(r"Game 2 - All\Bomb.png", (50, 50), fallback="red")
 explosion_photo  = load_image(r"Game 2 - All\Explosion.png", (80, 80), fallback="Explosion")
 
 # --- Arduino detection ---
