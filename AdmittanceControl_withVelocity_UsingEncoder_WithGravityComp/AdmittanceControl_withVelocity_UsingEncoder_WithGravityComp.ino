@@ -59,16 +59,15 @@ const float POS_MIN_RAD = -2.1051f;
 const float POS_MAX_RAD =  2.6073f;
 
 // Speed filter parameters
-const unsigned long SPEED_WIN_US = 5000;   // oversampling window (5 ms)
-constexpr uint8_t W_MED_WIN = 1;           // median window length (1,3,5,…)
-const float W_EMA_CUTOFF_HZ = 60.0f;       // EMA cutoff for speed (Hz)
+const unsigned long SPEED_WIN_US = 1000;   // oversampling window (5 ms)
+constexpr uint8_t W_MED_WIN = 3;           // median window length (1,3,5,…)
 
 // Force low-pass filter cutoff (Hz)
 const float FORCE_EMA_CUTOFF_HZ = 20.0f;
 
 // Control loop frequencies
 const float LOOP_HZ = 1000.0f;             // inner velocity loop (Hz)
-const unsigned long POS_DT_US = 5000;      // admittance update (~200 Hz)
+const unsigned long POS_DT_US = 10000;      // admittance update (~200 Hz)
 const unsigned long LOG_PERIOD_MS = 100;   // telemetry period (ms)
 
 // Velocity command shaping and saturation
@@ -86,7 +85,7 @@ const float D_TAU_VEL = 0.002f;            // derivative LPF time constant [s]
 
 // Admittance model parameters: Jv [kg·m²], Bv [N·m·s/rad], Kv [N·m/rad]
 float Jv = 0.057296f;
-float Bv = 0.18f;
+float Bv = 0.16273f;
 float Kv = 0.095493f;
 bool  USE_ADMITTANCE = true;
 const float W_ADM_MAX  = 30.0f;            // clamp for admittance velocity
@@ -187,7 +186,7 @@ static inline float potNorm(int adc){
 static inline float adcToThetaRad(int adc){
   float x = potNorm(adc);
   float theta_raw = THETA_MIN_RAD + x * (THETA_MAX_RAD - THETA_MIN_RAD);
-  return theta_raw  - 3.04f;   // match your previous alignment
+  return theta_raw  - 2.48f;   // match your previous alignment
 }
 
 // Motor command: signed PWM on IN1/IN2 with dead-time on reversal
@@ -373,8 +372,7 @@ void loop() {
       if (w_med_idx >= W_MED_WIN) { w_med_idx = 0; w_med_filled = true; }
       n_med = w_med_filled ? W_MED_WIN : (w_med_idx == 0 ? 1 : w_med_idx);
       float w_med = medianOfBuffer(w_med_buf, n_med);
-      float a = emaAlpha(W_EMA_CUTOFF_HZ, dtw);
-      if (alphaW < 0.0f) alphaW = a; else alphaW = a;
+      float alphaW =0.9f;
       w_ema += alphaW * (w_med - w_ema);
       w_meas = w_ema;
     }
@@ -396,8 +394,7 @@ void loop() {
     float force_ext = force_raw_N - grav;
 
     // Low-pass the external force
-    float alphaF = emaAlpha(FORCE_EMA_CUTOFF_HZ, dt);
-    force_N_ema = emaStep(force_N_ema, force_ext, alphaF);
+    force_N_ema = emaStep(force_N_ema, force_ext, 1);
 
     // External torque at joint
     tau_ext = TORQUE_SIGN * force_N_ema * ARM_LENGTH_M;
@@ -438,7 +435,7 @@ void loop() {
 
   // Inner velocity PID
   float e = w_total - w_meas;
-  // if (fabs(e) < 0.15f) e = 0.0f;  // small deadband
+  if (fabs(e) < 0.15f) e = 0.0f;  // small deadband
   iTerm += Ki * e * dt;
   iTerm = saturate(iTerm, -INT_CLAMP, INT_CLAMP);
   float raw_d = (e - e_prev) / dt;
