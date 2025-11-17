@@ -77,7 +77,10 @@ void SerialParser::poll(){
     delay(1050);
     ctrl_.overridePWM(0, 1);
     Serial.println(F("# test sequence done"));
-  }
+    
+  } 
+
+
 
   // flush any leftover chars on the line
   while (Serial.available()) Serial.read();

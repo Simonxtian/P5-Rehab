@@ -18,7 +18,7 @@ public:
     adm_.begin();
     pid_.begin();  // Initialize PID controller - was missing!
     lastLoopUs_ = micros();
-    lastLogMs_  = millis();
+    lastLogMs_  = millis();   
   }
 
   void update(){
