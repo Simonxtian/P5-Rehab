@@ -55,8 +55,8 @@ const float TOTAL_MASS_KG = 0.5f;   // <-- set this for your rig
 const float DELTA_OFFSET_RAD = 0.0f;  // tweak if needed
 
 // === Position clamps (radians, encoder-based) ===
-const float POS_MIN_RAD = -2.1051f;
-const float POS_MAX_RAD =  2.6073f;
+const float POS_MIN_RAD = -1.2f;
+const float POS_MAX_RAD =  1.2f;
 
 // Speed filter parameters
 const unsigned long SPEED_WIN_US = 1000;   // oversampling window (5 ms)
@@ -372,7 +372,7 @@ void loop() {
       if (w_med_idx >= W_MED_WIN) { w_med_idx = 0; w_med_filled = true; }
       n_med = w_med_filled ? W_MED_WIN : (w_med_idx == 0 ? 1 : w_med_idx);
       float w_med = medianOfBuffer(w_med_buf, n_med);
-      float alphaW =0.9f;
+      float alphaW =0.8f;
       w_ema += alphaW * (w_med - w_ema);
       w_meas = w_ema;
     }
@@ -394,7 +394,7 @@ void loop() {
     float force_ext = force_raw_N - grav;
 
     // Low-pass the external force
-    force_N_ema = emaStep(force_N_ema, force_ext, 1);
+    force_N_ema = emaStep(force_N_ema, force_ext, 0.8);
 
     // External torque at joint
     tau_ext = TORQUE_SIGN * force_N_ema * ARM_LENGTH_M;
@@ -411,22 +411,22 @@ void loop() {
     float numer  = Jv * w_adm + (tau_ext - spring) * dt_pos;
     float w_next = numer / denom;
 
-    float dw_max = DW_ADM_MAX * dt_pos;
-    w_next = saturate(w_next, w_adm - dw_max, w_adm + dw_max);
-    w_adm  = saturate(w_next, -W_ADM_MAX, W_ADM_MAX);
+    // float dw_max = DW_ADM_MAX * dt_pos;
+    // w_next = saturate(w_next, w_adm - dw_max, w_adm + dw_max);
+    w_adm  = w_next; //saturate(w_next, -W_ADM_MAX, W_ADM_MAX);
   }
 
   // Combine user velocity and admittance velocity
   float w_total = USE_ADMITTANCE ? (w_user + w_adm) : w_user;
 
-  // Rate limit & saturate commanded velocity
-  float dw = w_total - last_w_cmd;
-  float dw_lim = DW_CMD_MAX * dt;
-  if (dw >  dw_lim) w_total = last_w_cmd + dw_lim;
-  if (dw < -dw_lim) w_total = last_w_cmd - dw_lim;
-  w_total = saturate(w_total, -W_CMD_MAX, W_CMD_MAX);
+  // // Rate limit & saturate commanded velocity
+  // float dw = w_total - last_w_cmd;
+  // float dw_lim = DW_CMD_MAX * dt;
+  // if (dw >  dw_lim) w_total = last_w_cmd + dw_lim;
+  // if (dw < -dw_lim) w_total = last_w_cmd - dw_lim;
+  w_total =  w_total;  // saturate(w_total, -W_CMD_MAX, W_CMD_MAX);
 
-  // Safety: block motion beyond position limits (encoder-based)
+  // position limits important 
   if ((theta_meas_enc >= POS_MAX_RAD && w_total > 0.0f) ||
       (theta_meas_enc <= POS_MIN_RAD && w_total < 0.0f)) {
     w_total = 0.0f;
