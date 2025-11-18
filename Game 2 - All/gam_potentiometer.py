@@ -224,7 +224,7 @@ def calibrate_potentiometer():
         nonlocal angle_text
         global min_angle, max_angle
 
-        if cal_done["done"] :
+        if cal_done["done"] or ButtonPress == 1:
             total_range = max_angle - min_angle
 
             if total_range < 10:
