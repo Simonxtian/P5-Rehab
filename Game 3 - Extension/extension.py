@@ -26,8 +26,16 @@ UPDATE_MS = 25
 ANGLE_MIN, ANGLE_MAX = 40.0, 70.0
 
 arduino = None
-min_angle = 30.0
-max_angle = 70.0
+
+# Accept ROM calibration from command line
+if len(sys.argv) >= 3:
+    min_angle = float(sys.argv[1])
+    max_angle = float(sys.argv[2])
+    print(f"ROM Calibration loaded: {min_angle}° to {max_angle}°")
+else:
+    # Default values if not provided
+    min_angle = 30.0
+    max_angle = 70.0
 
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_extension.json"
@@ -596,10 +604,16 @@ def start_menu(root):
     canvas.create_text(WIDTH//2, 200, text="🚀 Rocket Extension Game 🌟",
                        font=("Comic Sans MS", 30, "bold"), fill="white")
 
-
     canvas.create_text(WIDTH // 2, 300,
                        text=("Extend your wrist to jump.\n"
-                             "Land on all platforms to reach the star!\n"
+                             "Land on all platforms to reach the star!\n",
+                       font=("Arial", 16), fill="white")
+    
+    # Add Back to Launcher button if launched from game launcher
+    if len(sys.argv) >= 3:
+        Button(canvas, text="← Back to Launcher", bg="#e74c3c", fg="white",
+               font=("Arial", 12, "bold"),
+               command=lambda: root.destroy()).place(x=10, y=10)
                              "Each successful landing gives you 1 point.\n"
                              "If you fail, you lose a life.\n"
                              "You have 3 lives. Good luck!"),

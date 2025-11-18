@@ -26,7 +26,7 @@ public:
     float forceRawN = scale_.get_units(1);  // already Newtons
     int adc = analogRead(PIN_POT);
     float theta_pot = adcToThetaRad(adc);
-    float gravN = totalMassKg_ * 9.81f * sinf(theta_pot + DELTA_OFFSET_RAD);
+    float gravN = totalMassKg_ * 9.81f * sinf(theta_pot);
     float fExt = forceRawN - gravN;              // subtract gravity
     forceEma_ = emaStep(forceEma_, fExt, FORCE_EMA_ALPHA);
     tauExt_ = TORQUE_SIGN * forceEma_ * ARM_LENGTH_M;

@@ -10,7 +10,7 @@ public:
   void begin(){
     params_.Jv = Jv_INIT; params_.Bv = Bv_INIT; params_.Kv = Kv_INIT;
     thetaEq_ = 0.0f; wAdm_ = 0.0f; lastPosUs_ = micros();
-    enabled_ = true;
+    enabled_ = false;
   }
   void setEnabled(bool en){ enabled_ = en; if(!en){ wAdm_=0.0f; }}
   bool enabled() const { return enabled_; }
