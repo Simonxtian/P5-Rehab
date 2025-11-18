@@ -97,15 +97,15 @@ def load_calibration():
         # 2. Go up to main folder
         main_dir = os.path.dirname(game_dir)
         # 3. Build path to Calibration
-        file_path = os.path.join(main_dir, "Calibration", "calibration_data.json")
+        file_path = os.path.join(main_dir, "WristRehab", "calibration_data.json")
         
         print(f"Looking for calibration at: {file_path}")
 
         with open(file_path, "r") as f:
             data = json.load(f)
             # For this game we use the Full Range (Flexion -> Extension)
-            val_flexion = data.get("flexion_position", 0)
-            val_extension = data.get("extension_position", 1023)
+            val_flexion = data.get("flexion", 0)
+            val_extension = data.get("extension", 1023)
             print(f"Calibration Loaded: Flexion={val_flexion}, Extension={val_extension}")
             
     except FileNotFoundError:
