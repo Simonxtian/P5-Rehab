@@ -29,6 +29,8 @@ Total_lives_text = None
 total_lives = 3
 ButtonPress = 0
 normalized = 0
+raw = None
+Previous = None
 
 
 # --- Tkinter setup ---
@@ -209,12 +211,7 @@ def calibrate_potentiometer():
         if arduino:
             try:
                 while arduino.in_waiting > 0:
-                    raw = arduino.readline()
-                    if raw:
-                        try:
-                            latest = float(raw.decode('utf-8').strip())
-                        except ValueError:
-                            continue
+                    update_from_arduino()
             except Exception:
                 pass
 
@@ -481,7 +478,7 @@ def start_menu():
             speed_slider.set(4)
         elif normalized < 5/6:
             speed_slider.set(5)
-        elif normalized < 6/6:
+        elif normalized <= 6/6:
             speed_slider.set(6)
 
         if ButtonPress == 1:
@@ -502,7 +499,7 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
-    global ButtonPress, normalized
+    global ButtonPress, normalized, Previous, raw
     """Read potentiometer and move basket (consume backlog, use latest)."""
     if arduino:
         latest = None
@@ -513,12 +510,13 @@ def update_from_arduino():
                 #if hasattr(arduino, "in_waiting"):
                  #   if arduino.in_waiting == 0:
                   #      break
+                Previous = raw
                 raw = arduino.readline()  # non-blocking due to timeout=0
                 #print("Ardu Read")
                 #print(raw)
                 if not raw:
                     break
-                s = raw.decode('utf-8', errors='ignore').strip()
+                s = Previous.decode('utf-8', errors='ignore').strip()
                 #print(s)
                 if not s:
                     continue
