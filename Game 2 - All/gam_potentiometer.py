@@ -522,25 +522,20 @@ def update_from_arduino():
                 #print(s)
                 if not s:
                     continue
-                Number = s.split(": ")
-                Number[1] = float(Number[1])
-                #print(Number[1])
-                if Number[1] < 1500:
-                    #print("Pot Info")
-                    try:
-                        latest = Number[1]
-                    except ValueError:
-                    # Ignore partial / non-numeric lines
-                        pass
-                if Number[1] > 1500:
-                    if Number[1] == 2001:
+                split = s.split(" ")
+
+                ButtonNumber = float(split[1])
+                PotNumber = float(split[3])
+
+                latest = PotNumber
+
+                if PotNumber == 2001:
                         ButtonPress = 1
                         #print(ButtonPress)
                         #print("ButtonPressed")
-                    elif Number[1] == 2000:
+                elif ButtonNumber == 2000:
                         ButtonPress = 0
-                        #print(ButtonPress)
-                        #print("ButtonReleased")
+
 
             if latest is not None:
                 angle = latest
