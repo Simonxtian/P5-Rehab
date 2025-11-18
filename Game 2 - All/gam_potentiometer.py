@@ -8,6 +8,15 @@ from PIL import Image, ImageTk
 import json
 import os
 
+# --- Accept ROM calibration from command line ---
+if len(sys.argv) >= 3:
+    min_angle = float(sys.argv[1])
+    max_angle = float(sys.argv[2])
+    print(f"ROM Calibration loaded: {min_angle}° to {max_angle}°")
+else:
+    # Default values if not provided
+    min_angle = 0.0
+    max_angle = 180.0
 
 # --- Game constants ---
 WIDTH, HEIGHT = 800, 600
@@ -465,6 +474,14 @@ def start_menu():
                          command=lambda: start_game(speed_slider.get()))
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
+    
+    # Add Back to Launcher button if launched from game launcher
+    if len(sys.argv) >= 3:
+        back_button = Button(canvas, text="← Back to Launcher", font=("Comic Sans MS", 14),
+                           bg="#e74c3c", fg="white",
+                           command=lambda: root.destroy())
+        back_button.place(x=10, y=10)
+        menu_widgets.append(back_button)
 
 
     def check_button_press_start():
@@ -611,7 +628,13 @@ def main():
 
 # --- Run ---
 connect_arduino()
-if arduino:
-    calibrate_potentiometer()
+
+# Only calibrate if no command-line args provided (launched directly)
+if len(sys.argv) < 3:
+    if arduino:
+        calibrate_potentiometer()
+else:
+    print(f"Using provided calibration: {min_angle}° to {max_angle}°")
+
 start_menu()
 root.mainloop()

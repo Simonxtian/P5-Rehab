@@ -18,7 +18,7 @@ public:
     adm_.begin();
     pid_.begin();  // Initialize PID controller - was missing!
     lastLoopUs_ = micros();
-    lastLogMs_  = millis();
+    lastLogMs_  = millis();   
   }
 
   void update(){
@@ -94,6 +94,7 @@ public:
   void admSet(float J,float B,float K){ adm_.setParams(J,B,K); }
   void admHoldEq(){ adm_.holdEq(enc_.thetaRad()); }
   void tareScale(){ fs_.tare(); }
+  void setTotalMass(float mass_kg){ fs_.setTotalMass(mass_kg); }
 
   // ---- Manual override controls ----
   void overridePWM(float pwm, uint32_t ms){
