@@ -19,11 +19,12 @@ OBJECT_TYPES = [
 ]
 NUM_OBJECTS = 2
 
-# --- Calibration Globals ---
-CALIBRATION_FILE = "calibration_data.json"
-# Default values (will be overwritten by load_calibration)
-val_recta = 0       # Wrist Straight (Rope Length 0)
-val_flexion = 1023  # Wrist Flexed (Rope Length Max)
+# --- Variables Globales ---
+# Se conectará al inicio
+arduino = None
+# Se establecerán en la calibración
+min_angle = 60.0
+max_angle = 120.0
 
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_flex.json"
@@ -181,6 +182,12 @@ class FishingGame:
         self.stop_btn.pack(side="left", padx=10)
         self.reset_btn = Button(root, text="RESET LEVEL", command=self.reset_round)
         self.reset_btn.pack(side="left", padx=10)
+        
+        # Add Back to Launcher button if launched from game launcher
+        if len(sys.argv) >= 3:
+            self.back_btn = Button(root, text="← Back to Launcher", bg="#e74c3c", fg="white",
+                                  command=lambda: root.destroy())
+            self.back_btn.pack(side="right", padx=10)
 
         # Controls
         root.bind("<space>", lambda e: self.toggle_sweep())

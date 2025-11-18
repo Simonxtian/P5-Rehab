@@ -18,6 +18,13 @@ void SerialParser::poll(){
     ctrl_.tareScale();
     Serial.println(F("# scale tared"));
 
+  } else if (token.equalsIgnoreCase("totalmass")){
+    float mass = Serial.parseFloat();
+    ctrl_.setTotalMass(mass);
+    Serial.print(F("# total mass set to "));
+    Serial.print(mass, 4);
+    Serial.println(F(" kg"));
+
   } else if (token.equalsIgnoreCase("adm")){
     String rest = Serial.readStringUntil('\n');
     rest.trim();
@@ -77,7 +84,10 @@ void SerialParser::poll(){
     delay(1050);
     ctrl_.overridePWM(0, 1);
     Serial.println(F("# test sequence done"));
-  }
+    
+  } 
+
+
 
   // flush any leftover chars on the line
   while (Serial.available()) Serial.read();
