@@ -13,16 +13,14 @@ UPDATE_MS = 25
 ARDUINO_BAUD = 9600
 
 OBJECT_TYPES = [
-    ("gold", "gold.png", +3),
-    ("fish", "fish.png", +2),
-    ("trash", "trash.png", -3)
+    ("gold", "gold.png", +2),
+    ("fish", "fish.png", +1),
+    ("trash", "trash.png", -2)
 ]
-NUM_OBJECTS = 5
+NUM_OBJECTS = 2
 
 # --- Variables Globales ---
-# Se conectará al inicio
 arduino = None
-# Se establecerán en la calibración
 min_angle = 60.0
 max_angle = 120.0
 
@@ -49,33 +47,45 @@ def load_highscore():
         return 0
     
 
-
 def save_highscore(score):
-    global highscore # Ensure we are comparing against the loaded highscore
-    if score > highscore: # Only save if it's a new highscore
+    global highscore
+    
+    # --- DEBUG PRINT ---
+    print(f"[DEBUG] save_highscore() fue llamada.")
+    print(f"[DEBUG] Comparando: score ({score}) > highscore ({highscore})")
+    # --- FIN DEBUG ---
+
+    if score > highscore:
         """Save highscore to a JSON file located next to this script using an atomic replace."""
         try:
             file_path = os.path.join(os.path.dirname(__file__), "highscore_flex.json")
-            # Ensure directory exists (usually it's the script dir, but be safe)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             tmp_path = file_path + ".tmp"
-            # Write to a temp file and atomically replace the target to avoid partial writes
+            
+            # --- DEBUG PRINT ---
+            print(f"[DEBUG] ¡NUEVO HIGHSCORE! Escribiendo {score} en {file_path}")
+            # --- FIN DEBUG ---
+
             with open(tmp_path, "w") as f:
                 json.dump({"highscore": int(score)}, f)
                 f.flush()
                 try:
                     os.fsync(f.fileno())
                 except Exception:
-                    # os.fsync may not be available on some platforms or file descriptors
                     pass
             os.replace(tmp_path, file_path)
-            highscore = score # Update the global variable
-            print(f"New highscore ({score}) saved!")
+            highscore = score 
+            print(f"¡Nuevo highscore ({score}) guardado!")
         except Exception as e:
-            print("Error saving highscore:", e)
+            # --- DEBUG PRINT ---
+            print(f"!!!!!!!!!!!!! ERROR AL GUARDAR !!!!!!!!!!!!!")
+            print(f"Error saving highscore: {e}")
+            print(f"Verifica los permisos de la carpeta: {os.path.dirname(file_path)}")
+            # --- FIN DEBUG ---
     else:
-        # No update needed
-        pass
+        # --- DEBUG PRINT ---
+        print(f"[DEBUG] No es un highscore nuevo. No se guarda nada.")
+        # --- FIN DEBUG ---
 
 
 # Load the highscore once at the start
@@ -299,7 +309,6 @@ class FishingGame:
     # --- CONTROLS ---
     def toggle_sweep(self):
         """Toggles the rod sweeping left and right."""
-        # Don't allow toggling while hook is retracting
         if self.waiting_for_retraction:
             return
 
@@ -313,17 +322,18 @@ class FishingGame:
             self.stopped = False
 
     def reset_round(self):
-        """Resets the current level, but keeps the total score."""
-        # self.score = 0  <-- REMOVED. Score is now persistent.
-        self.start_time = time.time() # Reset level timer
-        self.rope_len = 0
-        self.spawn_objects()
-        self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}") # Update text
-        self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
-        for tid in self.temp_texts:
-            self.canvas.delete(tid)
-        self.temp_texts.clear()
-        self.waiting_for_retraction = False
+            """Resets the current level, but keeps the total score."""
+            self.start_time = time.time() # Reset level timer
+            self.rope_len = 0
+            self.spawn_objects()
+            self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}") # Update text
+            self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
+            for tid in self.temp_texts:
+                self.canvas.delete(tid)
+            self.temp_texts.clear()
+            self.waiting_for_retraction = False
+            self.canvas.itemconfig(self.rope_item, state="normal")
+
 
     def adjust_rope(self, event):
         if self.arduino is not None or not self.stopped:
@@ -462,24 +472,18 @@ class FishingGame:
         
         total_time = round(time.time() - self.start_time, 1)
         
-        # --- HIGHSCORE LOGIC ---
-        global highscore
-        # Update highscore in memory if it's beaten (for display)
-        if self.score > highscore:
-            highscore = self.score
-            save_highscore(highscore)
-        # --- END HIGHSCORE LOGIC ---
-
+        global highscore  
+        
+        display_highscore = max(self.score, highscore)
+        
         win = Toplevel(self.root)
         win.title("Level Complete!")
         win.resizable(False, False)
-        c = Canvas(win, width=400, height=350) # Made window taller
+        c = Canvas(win, width=400, height=350)
         c.pack()
         
-        # --- UPDATED MESSAGE ---
-        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {highscore}\nTime: {total_time}s"
+        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {display_highscore}\nTime: {total_time}s"
         c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black", justify="center")
-        # --- END UPDATED MESSAGE ---
 
         def _play_again():
             win.destroy()
@@ -497,11 +501,9 @@ class FishingGame:
         Button(win, text="NEXT LEVEL", bg="green", fg="white",
             font=("Arial", 14, "bold"), command=_play_again).place(x=70, y=250, width=120, height=40)
         
-        # --- UPDATED EXIT BUTTON ---
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
             command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
-        # --- END UPDATED EXIT BUTTON ---
-
+        
 # --- START MENU ---
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
@@ -511,14 +513,19 @@ def start_menu(root):
                         font=("Comic Sans MS", 36, "bold"), fill="navy")
     canvas.create_text(WIDTH//2, 300,
                         text=("Move the rod left and right automatically.\n"
-                                "Press the button to stop the rod.\n"
-                                "Move your wrist downward (flexion) to lower the fishing line.\n"
-                                "Catch fish and gold, avoid trash.\n"
-                                "When you catch all the good items, you win!"),
+                              "Press the button to stop the rod.\n"
+                              "Move your wrist downward (flexion) to lower the fishing line.\n"
+                              "Catch fish and gold, avoid trash.\n"
+                              "When you catch all the good items, you win!"),
                         font=("Comic Sans MS", 16), fill="black", justify="center")
-    Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
-           command=lambda: (canvas.destroy(), FishingGame(root))).place(x=340, y=500)
 
+    def start_game():
+        for widget in root.winfo_children():
+            widget.destroy()
+        FishingGame(root)
+
+    Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
+           command=start_game).place(x=340, y=500)
 # --- MAIN ---
 if __name__ == "__main__":
     root = Tk()
