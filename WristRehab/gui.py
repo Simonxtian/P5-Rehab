@@ -253,7 +253,9 @@ class RehabGUI:
         except:
             messagebox.showerror("Mass","Enter a valid weight")
             return
-        self._send(f"mass {mass:.3f}")
+        # Note: Mass is now set via the 'totalmass' command
+        self._send(f"totalmass {mass:.4f}")
+        self._log(f"# Setting total mass to {mass:.4f} kg for gravity compensation")
 
     def on_run_mvc(self):
         # Sequence: adm off; vd 0; tare; eq hold; collect tau_ext max 5 s while asking user to extend
@@ -271,12 +273,19 @@ class RehabGUI:
             messagebox.showerror("Params","Enter numeric theta_target and a_max")
             return
 
-
+        # Proper sequence: disable admittance, stop motion, tare force sensor, set equilibrium
         self._send("adm off")
+        time.sleep(0.1)
+        self._send("w 0")
+        time.sleep(0.1)
+        self._send("tare")
+        time.sleep(0.5)
+        self._send("eq hold")
+        time.sleep(0.1)
 
         # collect tau_ext for 5 seconds
         self._log("# MVC: start — apply maximum EXTENSION torque now")
-        t_end = time.time() + 10.0
+        t_end = time.time() + 5.0
         tau_max = None
         while time.time() < t_end:
             try:
@@ -315,8 +324,11 @@ class RehabGUI:
         self.mvc_label.config(text=(f"τ_ref={tau_ref:.3f} N·m | J={J:.5f} kg·m², "
                                     f"B={B:.5f} N·m·s/rad, K={K:.5f} N·m/rad"))
 
-        # Push to device and enable admittance
+        # Push parameters to device FIRST, then enable admittance
         self._send(f"adm {J:.6f} {B:.6f} {K:.6f}")
+        time.sleep(0.1)
+        self._send("eq hold")  # Reset equilibrium after params are set
+        time.sleep(0.1)
         self._send("adm on")
         self._log(f"# Set admittance: J={J:.6f}, B={B:.6f}, K={K:.6f} | wn={wn:.2f} rad/s")
 

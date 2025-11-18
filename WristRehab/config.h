@@ -35,8 +35,6 @@ static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
 static constexpr float POT_OFFSET_RAD = -2.48f;   // align to your home
 
 // ----------------- Gravity comp -----------------
-static constexpr float TOTAL_MASS_KG = 0.5f;      // handle + wrist + tool
-static constexpr float  massKg_ = TOTAL_MASS_KG;
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 
 // ----------------- Position clamps (encoder space) -----------------
