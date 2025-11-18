@@ -599,8 +599,8 @@ def start_menu(root):
                        font=("Comic Sans MS", 30, "bold"), fill="white")
 
     canvas.create_text(WIDTH // 2, 300,
-                       text=("Extend your wrist to jump.\n"
-                             "Land on all platforms to reach the star!\n",
+                       text=("Extend your wrist to jump.\n",
+                             "Land on all platforms to reach the star!\n")
                        font=("Arial", 16), fill="white")
     
     # Add Back to Launcher button if launched from game launcher
