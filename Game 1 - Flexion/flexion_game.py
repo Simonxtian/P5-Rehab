@@ -2,7 +2,7 @@ import json
 import os, sys, time, glob, serial
 from random import randint, choice
 from tkinter import Tk, Canvas, Button, NW, Toplevel
-from PIL import Image, ImageTk, ImageDraw # Moved ImageDraw here for consistency
+from PIL import Image, ImageTk, ImageDraw 
 
 # --- CONFIG ---
 WIDTH, HEIGHT = 800, 600
@@ -13,35 +13,26 @@ UPDATE_MS = 25
 ARDUINO_BAUD = 9600
 
 OBJECT_TYPES = [
-    ("gold", "gold.png", +3),
-    ("fish", "fish.png", +2),
-    ("trash", "trash.png", -3)
+    ("gold", "gold.png", +2),
+    ("fish", "fish.png", +1),
+    ("trash", "trash.png", -2)
 ]
-NUM_OBJECTS = 5
+NUM_OBJECTS = 2
 
 # --- Variables Globales ---
 # Se conectará al inicio
 arduino = None
-
-# Accept ROM calibration from command line
-if len(sys.argv) >= 3:
-    min_angle = float(sys.argv[1])
-    max_angle = float(sys.argv[2])
-    print(f"ROM Calibration loaded: {min_angle}° to {max_angle}°")
-else:
-    # Default values if not provided
-    min_angle = 60.0
-    max_angle = 120.0
+# Se establecerán en la calibración
+min_angle = 60.0
+max_angle = 120.0
 
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_flex.json"
 
 def load_highscore():
-    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore_flex.json"))
     """Load highscore from a JSON file located next to this script; create if missing."""
     try:
-        file_path = os.path.join(os.path.dirname(__file__), "highscore_flex.json")
-        # If file doesn't exist, create it with default highscore 0
+        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
         if not os.path.exists(file_path):
             with open(file_path, "w") as f:
                 json.dump({"highscore": 0}, f)
@@ -51,44 +42,66 @@ def load_highscore():
             data = json.load(f)
             return int(data.get("highscore", 0))
     except Exception as e:
-        # Log and return 0 on any error to keep game running
         print("Error loading highscore:", e)
         return 0
-    
-
 
 def save_highscore(score):
-    global highscore # Ensure we are comparing against the loaded highscore
-    if score > highscore: # Only save if it's a new highscore
-        """Save highscore to a JSON file located next to this script using an atomic replace."""
+    global highscore
+    if score > highscore:
         try:
-            file_path = os.path.join(os.path.dirname(__file__), "highscore_flex.json")
-            # Ensure directory exists (usually it's the script dir, but be safe)
+            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             tmp_path = file_path + ".tmp"
-            # Write to a temp file and atomically replace the target to avoid partial writes
+            
             with open(tmp_path, "w") as f:
                 json.dump({"highscore": int(score)}, f)
                 f.flush()
                 try:
                     os.fsync(f.fileno())
                 except Exception:
-                    # os.fsync may not be available on some platforms or file descriptors
                     pass
             os.replace(tmp_path, file_path)
-            highscore = score # Update the global variable
+            highscore = score 
             print(f"New highscore ({score}) saved!")
         except Exception as e:
-            print("Error saving highscore:", e)
-    else:
-        # No update needed
-        pass
-
+            print(f"Error saving highscore: {e}")
 
 # Load the highscore once at the start
 highscore = load_highscore()
 
+# --- CALIBRATION LOADING ---
+def load_calibration():
+    """Carga los valores de calibración desde la carpeta hermana 'Calibration'."""
+    global val_recta, val_flexion
+    
+    # Valores por defecto
+    val_recta = 0
+    val_flexion = 1023
 
+    try:
+        # 1. Obtener la carpeta donde está este script (Game 1 - Flexion)
+        game_dir = os.path.dirname(__file__)
+        
+        # 2. Subir un nivel a la carpeta principal (P5-REHAB)
+        main_dir = os.path.dirname(game_dir)
+        
+        # 3. Construir la ruta hacia la carpeta 'Calibration'
+        file_path = os.path.join(main_dir, "Calibration", "calibration_data.json")
+        
+        print(f"Buscando calibración en: {file_path}") # Para ver si la ruta es correcta
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            # Cargamos solo lo que necesitamos
+            val_recta = data.get("posicion_recta", 450)
+            val_flexion = data.get("posicion_flexion", 120)
+            print(f"Calibración Cargada: Recta={val_recta}, Flexión={val_flexion}")
+            
+    except FileNotFoundError:
+        print(f"ERROR: No se encontró el archivo en: {file_path}")
+        print("Asegúrate de haber ejecutado Calibration.py primero.")
+    except Exception as e:
+        print(f"Error cargando calibración: {e}")
 # --- IMAGE LOADER ---
 def load_image(path, size=None):
     try:
@@ -98,11 +111,12 @@ def load_image(path, size=None):
             img = img.resize(size, resample_filter)
         return ImageTk.PhotoImage(img)
     except Exception:
+        # Fallback if image is missing
         w, h = size if size else (60, 60)
         img = Image.new("RGBA", (w, h), (200, 200, 200, 255))
         d = ImageDraw.Draw(img)
         d.rectangle((0, 0, w - 1, h - 1), outline=(0, 0, 0))
-        d.text((10, h // 2 - 8), "missing", fill=(0, 0, 0))
+        d.text((10, h // 2 - 8), "Img?", fill=(0, 0, 0))
         return ImageTk.PhotoImage(img)
 
 # --- SERIAL UTILS ---
@@ -138,86 +152,6 @@ def connect_arduino():
         print("Serial error:", e)
         return None
 
-
-def calibrate_potentiometer():
-    """Calibrate wrist extension range."""
-    global min_angle, max_angle
-    min_angle, max_angle = 9999, -9999
-
-    cal_win = Toplevel(root)
-    cal_win.title("Potentiometer Calibration")
-    cal_win.geometry("420x220")
-    cal_win.resizable(False, False)
-    cal_canvas = Canvas(cal_win, width=420, height=220)
-    cal_canvas.pack()
-
-    msg = cal_canvas.create_text(
-        210, 60,
-        text=" Slowly move your wrist to maximum flexion\nPress SPACE when done",
-        font=("Arial", 12),
-        fill="black",
-        width=380,
-        justify="center"
-    )
-    angle_text = cal_canvas.create_text(
-        210, 130,
-        text="Angle: --°",
-        font=("Arial", 24, "bold"),
-        fill="blue"
-    )
-
-    if arduino:
-        arduino.reset_input_buffer()
-        time.sleep(0.5)
-
-    cal_done = {"done": False}
-
-    def finish_calibration(event=None):
-        cal_done["done"] = True
-
-    cal_win.bind("<space>", finish_calibration)
-
-    def read_potentiometer_during_calibration():
-            global min_angle, max_angle
-            latest = None
-
-            if arduino:
-                try:
-                    while arduino.in_waiting > 0:
-                        raw = arduino.readline()
-                        if raw:
-                            try:
-                                latest = float(raw.decode('utf-8').strip())
-                            except ValueError:
-                                continue
-                except Exception:
-                    pass
-
-            if latest is not None:
-                cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
-                if latest < min_angle:
-                    min_angle = latest
-                if latest > max_angle:
-                    max_angle = latest
-
-            if cal_done["done"]:
-                total_range = max_angle - min_angle
-                if max_angle - min_angle < 10:
-                    print("⚠️ Range too small, using 30–70° default.")
-                    min_angle, max_angle = 30, 70
-                    total_range = max_angle - min_angle
-                cal_canvas.itemconfig(msg, text=f" Calibrated!\nTotal Range: {total_range:.2f}°")        
-                root.after(1000, cal_win.destroy)
-                print(f" Calibration completed: Total range of {total_range:.2f}°")        
-                return
-
-            cal_win.after(50, read_potentiometer_during_calibration)
-
-    read_potentiometer_during_calibration()
-    root.wait_window(cal_win)
-
-
-
 # --- GAME CLASS ---
 class FishingGame:
     def __init__(self, root):
@@ -225,7 +159,7 @@ class FishingGame:
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
         
-        # Load assets
+        # Load assets (Paths kept as provided)
         self.bg_img = load_image(r"Game 1 - Flexion\sea.png", (WIDTH, HEIGHT))
         self.rod_img = load_image(r"Game 1 - Flexion\fishing_rod.png", (90, 90))
         self.obj_imgs = {
@@ -246,7 +180,7 @@ class FishingGame:
         # Buttons
         self.stop_btn = Button(root, text="STOP/RESUME", command=self.toggle_sweep)
         self.stop_btn.pack(side="left", padx=10)
-        self.reset_btn = Button(root, text="RESET LEVEL", command=self.reset_round) # Changed text for clarity
+        self.reset_btn = Button(root, text="RESET LEVEL", command=self.reset_round)
         self.reset_btn.pack(side="left", padx=10)
         
         # Add Back to Launcher button if launched from game launcher
@@ -268,8 +202,7 @@ class FishingGame:
         self.rope_len = 0
         self.sweeping = True
         self.stopped = False
-        self.rope_extending = False
-        self.score = 0 # This will be the total session score
+        self.score = 0 
         self.start_time = time.time()
         
         global arduino
@@ -311,32 +244,28 @@ class FishingGame:
 
     # --- CONTROLS ---
     def toggle_sweep(self):
-        """Toggles the rod sweeping left and right."""
-        # Don't allow toggling while hook is retracting
         if self.waiting_for_retraction:
             return
 
         if self.sweeping:
-            # Stop the sweep
             self.sweeping = False
             self.stopped = True
         else:
-            # Resume the sweep
             self.sweeping = True
             self.stopped = False
 
     def reset_round(self):
-        """Resets the current level, but keeps the total score."""
-        # self.score = 0  <-- REMOVED. Score is now persistent.
-        self.start_time = time.time() # Reset level timer
-        self.rope_len = 0
-        self.spawn_objects()
-        self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}") # Update text
-        self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
-        for tid in self.temp_texts:
-            self.canvas.delete(tid)
-        self.temp_texts.clear()
-        self.waiting_for_retraction = False
+            self.start_time = time.time()
+            self.rope_len = 0
+            self.spawn_objects()
+            self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
+            self.canvas.itemconfig(self.level_text, text=f"Level: {self.level}")
+            for tid in self.temp_texts:
+                self.canvas.delete(tid)
+            self.temp_texts.clear()
+            self.waiting_for_retraction = False
+            self.canvas.itemconfig(self.rope_item, state="normal")
+
 
     def adjust_rope(self, event):
         if self.arduino is not None or not self.stopped:
@@ -375,7 +304,7 @@ class FishingGame:
                 
                 self.canvas.delete(obj["id"])
                 self.objects.remove(obj)
-                self.score += obj["pts"] # Add to persistent score
+                self.score += obj["pts"]
                 self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
                 text_id = self.canvas.create_text(
                     (ox1 + ox2) // 2, oy1 - 20,
@@ -400,12 +329,13 @@ class FishingGame:
         self.rope_len = max(0, min(ROPE_MAX_LEN, length))
 
     def finish_catch_and_resume(self):
-        """Se llama después de una captura. Muestra la cuerda y espera la retracción."""
         self.canvas.itemconfig(self.rope_item, state="normal")
         self.waiting_for_retraction = True
     
-    # --- ARDUINO POLLING ---
+    # --- ARDUINO POLLING (UPDATED FOR NEW CALIBRATION) ---
     def update_from_arduino(self):
+        global val_recta, val_flexion
+        
         if self.arduino:
             latest = None
             try:
@@ -414,22 +344,42 @@ class FishingGame:
                     if not raw: continue
                     s = raw.decode('utf-8', errors='ignore').strip()
                     if not s: continue
+                    
+                    # Assuming format "Button: X Pot: Y" or just "Y"
+                    # Adjust this parsing to match your Arduino output exactly
+                    split = s.split(" ")
                     try:
-                        angle = float(s)
-                        latest = angle
+                        if len(split) >= 4 and split[2] == "Pot:":
+                             val = float(split[3])
+                        else:
+                             val = float(s) # Fallback if it sends just numbers
+                        latest = val
                     except ValueError:
                         continue
 
                 if latest is not None:
-                    angle = max(min_angle, min(max_angle, latest))
-                    self.pot_normalized = (angle - min_angle) / (max_angle - min_angle)
+                    angle = latest
+                    
+                    # --- NEW MAPPING LOGIC ---
+                    # Range calculation
+                    cal_range = val_flexion - val_recta
+                    
+                    if cal_range == 0:
+                        self.pot_normalized = 0
+                    else:
+                        # Clamp the raw value between Recta and Flexion limits
+                        cal_min = min(val_recta, val_flexion)
+                        cal_max = max(val_recta, val_flexion)
+                        clamped_angle = max(cal_min, min(cal_max, angle))
+                        
+                        # Normalize (0.0 = Recta/Top, 1.0 = Flexion/Bottom)
+                        self.pot_normalized = (clamped_angle - val_recta) / cal_range
 
                     if not self.sweeping:
                         y_pos = self.pot_normalized * ROPE_MAX_LEN
                         self.set_rope(int(y_pos))
 
             except Exception as e:
-                print(f"Error en update_from_arduino: {e}")
                 pass
 
         self.root.after(50, self.update_from_arduino)
@@ -456,12 +406,10 @@ class FishingGame:
         
         else:
             if self.check_hit():
-                pass #
+                pass 
         self.update_rope()
 
-    # --- NEW FUNCTION TO SAVE AND EXIT ---
     def exit_and_save(self):
-        """Saves the highscore if needed, then closes the game."""
         save_highscore(self.score)
         self.root.destroy()
 
@@ -474,31 +422,23 @@ class FishingGame:
         self.temp_texts.clear()
         
         total_time = round(time.time() - self.start_time, 1)
+        global highscore  
+        display_highscore = max(self.score, highscore)
         
-        # --- HIGHSCORE LOGIC ---
-        global highscore
-        # Update highscore in memory if it's beaten (for display)
-        if self.score > highscore:
-            highscore = self.score
-            save_highscore(highscore)
-        # --- END HIGHSCORE LOGIC ---
-
         win = Toplevel(self.root)
         win.title("Level Complete!")
         win.resizable(False, False)
-        c = Canvas(win, width=400, height=350) # Made window taller
+        c = Canvas(win, width=400, height=350)
         c.pack()
         
-        # --- UPDATED MESSAGE ---
-        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {highscore}\nTime: {total_time}s"
+        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {display_highscore}\nTime: {total_time}s"
         c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black", justify="center")
-        # --- END UPDATED MESSAGE ---
 
         def _play_again():
             win.destroy()
             self.level += 1
             self.sweep_speed = ROD_SWEEP_SPEED + (self.level - 1) * 1.2
-            self.reset_round() # This no longer resets score
+            self.reset_round() 
             self.rod_x = 100
             self.rod_dir = 1
             self.set_rope(0)
@@ -510,11 +450,9 @@ class FishingGame:
         Button(win, text="NEXT LEVEL", bg="green", fg="white",
             font=("Arial", 14, "bold"), command=_play_again).place(x=70, y=250, width=120, height=40)
         
-        # --- UPDATED EXIT BUTTON ---
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
             command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
-        # --- END UPDATED EXIT BUTTON ---
-
+        
 # --- START MENU ---
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
@@ -524,24 +462,27 @@ def start_menu(root):
                         font=("Comic Sans MS", 36, "bold"), fill="navy")
     canvas.create_text(WIDTH//2, 300,
                         text=("Move the rod left and right automatically.\n"
-                                "Press the button to stop the rod.\n"
-                                "Move your wrist downward (flexion) to lower the fishing line.\n"
-                                "Catch fish and gold, avoid trash.\n"
-                                "When you catch all the good items, you win!"),
+                              "Press the button to stop the rod.\n"
+                              "Move your wrist downward (flexion) to lower the fishing line.\n"
+                              "Catch fish and gold, avoid trash.\n"
+                              "When you catch all the good items, you win!"),
                         font=("Comic Sans MS", 16), fill="black", justify="center")
+
+    def start_game():
+        for widget in root.winfo_children():
+            widget.destroy()
+        FishingGame(root)
+
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
-           command=lambda: (canvas.destroy(), FishingGame(root))).place(x=340, y=500)
+           command=start_game).place(x=340, y=500)
 
 # --- MAIN ---
 if __name__ == "__main__":
     root = Tk()
     root.title("Fishing Flexion Game")
     
-    arduino = connect_arduino() 
-    if arduino:
-        calibrate_potentiometer()
-    else: 
-        print(" Arduino not connected, using keyboard controls.")
+    arduino = connect_arduino()
+    load_calibration() # Load the calibration from the JSON file
     
     start_menu(root)
     root.mainloop()
