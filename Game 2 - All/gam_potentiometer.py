@@ -31,6 +31,9 @@ ButtonPress = 0
 normalized = 0
 raw = None
 Previous = None
+angle = None
+
+
 
 
 # --- Tkinter setup ---
@@ -168,24 +171,27 @@ def connect_arduino():
         return None
 
 def calibrate_potentiometer():
-    global min_angle, max_angle
-    min_angle, max_angle = 9999, -9999  # start with extreme values
+    global min_angle, max_angle, angle
+
+    min_angle, max_angle = 9999, -9999
 
     cal_win = Toplevel(root)
     cal_win.title("Potentiometer Calibration")
     cal_win.geometry("400x200")
     cal_win.resizable(False, False)
+
     cal_canvas = Canvas(cal_win, width=400, height=200)
     cal_canvas.pack()
 
     msg = cal_canvas.create_text(
         200, 50,
-        text=" Move wrist freely\nPress SPACE when done",
+        text="Move wrist freely\nPress SPACE when done",
         font=("Arial", 12),
         fill="black",
         width=380,
         justify="center"
     )
+
     angle_text = cal_canvas.create_text(
         200, 110,
         text="Angle: --°",
@@ -194,61 +200,58 @@ def calibrate_potentiometer():
     )
 
     if arduino:
-        arduino.reset_input_buffer()
-        time.sleep(0.5)
+        try:
+            arduino.reset_input_buffer()
+        except:
+            pass
+        time.sleep(0.3)
 
     cal_done = {"done": False}
+    cal_win.bind("<space>", lambda e: cal_done.update(done=True))
 
-    def finish_calibration(event=None):
-        cal_done["done"] = True
+    def read_latest_angle():
+        """Return newest PotNumber or None."""
+        if not arduino:
+            return None
 
-    cal_win.bind("<space>", finish_calibration)
+        value = None
+        while arduino.in_waiting > 0:
+            update_from_arduino()
+            value = angle
+        return value
 
-    def update_calibration():
+    def update_cal():
+        nonlocal angle_text
         global min_angle, max_angle
-        latest = None
 
-        if arduino:
-            try:
-                while arduino.in_waiting > 0:
-                    update_from_arduino()
-            except Exception:
-                pass
-
-        if latest is not None:
-            # Update live display
-            cal_canvas.itemconfig(angle_text, text=f"Angle: {latest:.2f}°")
-            # Update min/max dynamically
-            if latest < min_angle:
-                min_angle = latest
-            if latest > max_angle:
-                max_angle = latest
-
-        if cal_done["done"]:
-            # Calculate the total range (the difference)
+        if cal_done["done"] :
             total_range = max_angle - min_angle
 
-            # Ensure a minimum range
             if total_range < 10:
-                print("⚠️ Calibration range too small. Using default 0–180° range.")
-                min_angle, max_angle = 0, 180
-                # Recalculate range based on the default
-                total_range = max_angle - min_angle
-            
-            # Display the calculated total range
-            cal_canvas.itemconfig(msg, text=f"✅ Done!\nTotal Range: {total_range:.2f}°")
-            root.after(1000, cal_win.destroy)
-            
-            # Print the calculated total range
-            print(f" Calibration done! Total range of {total_range:.2f}°")
-            
-            # --- END OF MODIFICATIONS ---
+                min_angle, max_angle = 0, 1023
+                total_range = 1023
+
+            cal_canvas.itemconfig(
+                msg,
+                text=f"Calibration done!\nRange: {total_range:.0f}"
+            )
+            root.after(700, cal_win.destroy)
             return
 
-        cal_win.after(20, update_calibration)
+        angle = read_latest_angle()
+        if angle is not None:
+            cal_canvas.itemconfig(angle_text, text=f"Angle: {angle:.0f}")
 
-    update_calibration()
+            if angle < min_angle:
+                min_angle = angle
+            if angle > max_angle:
+                max_angle = angle
+
+        cal_win.after(30, update_cal)
+
+    update_cal()
     root.wait_window(cal_win)
+
     
 # --- Game Classes ---
 class Bird:
@@ -499,7 +502,7 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
-    global ButtonPress, normalized, Previous, raw
+    global ButtonPress, normalized, Previous, raw, min_angle, max_angle, angle
     """Read potentiometer and move basket (consume backlog, use latest)."""
     if arduino:
         latest = None
@@ -527,7 +530,7 @@ def update_from_arduino():
 
                 latest = PotNumber
 
-                if PotNumber == 2001:
+                if ButtonNumber == 2001:
                         ButtonPress = 1
                         #print(ButtonPress)
                         #print("ButtonPressed")
@@ -541,12 +544,18 @@ def update_from_arduino():
                 # Clamp to range (safety)
                 angle = max(0, min(1023, angle))
 
-                # --- Screen mapping ---
+                # --- Screen mapping using calibrated range ---
+
+                # Avoid divide-by-zero if calibration failed
+                cal_range = max(10, max_angle - min_angle)
+
+                # Normalize based on calibration
+                normalized = (angle - min_angle) / cal_range
+                normalized = max(0, min(1, normalized))  # clamp 0–1
+
                 top_limit = 0
                 bottom_limit = HEIGHT - 120  # basket height = 120
 
-                # Normalize 40° → 0, 150° → 1
-                normalized = (angle - 0) / (1023 - 0)
 
                 # Invert so higher angle = higher (top of screen)
                 y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
@@ -598,7 +607,6 @@ def main():
             arduino.flushInput()
 
     bird_set()
-    root.after(100, update_from_arduino)  # start reading potentiometer
     root.after(100, update_from_arduino)  # start reading potentiometer
 
 # --- Run ---
