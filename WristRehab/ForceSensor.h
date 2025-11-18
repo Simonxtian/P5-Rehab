@@ -15,7 +15,7 @@ public:
     tare(20);
     forceEma_ = 0.0f;
     tauExt_ = 0.0f;
-    totalMassKg_ = 0.42f;  // Default: 70kg * 0.006
+    totalMassKg_ = 0.42f;  
   }
   void tare(uint8_t times=20){ scale_.tare(times); }
   void setTotalMass(float mass_kg){ totalMassKg_ = mass_kg; }
