@@ -8,15 +8,10 @@ from PIL import Image, ImageTk
 import json
 import os
 
-# --- Accept ROM calibration from command line ---
-if len(sys.argv) >= 3:
-    min_angle = float(sys.argv[1])
-    max_angle = float(sys.argv[2])
-    print(f"ROM Calibration loaded: {min_angle}° to {max_angle}°")
-else:
-    # Default values if not provided
-    min_angle = 0.0
-    max_angle = 180.0
+# --- Calibration Globals ---
+# Default values (will be overwritten by load_calibration)
+val_flexion = 0     # Bottom of screen
+val_extension = 1023 # Top of screen
 
 # --- Game constants ---
 WIDTH, HEIGHT = 800, 600
@@ -43,8 +38,6 @@ Previous = None
 angle = None
 
 
-
-
 # --- Tkinter setup ---
 root = Tk()
 root.title("Catch the Bird")
@@ -57,11 +50,9 @@ canvas.pack()
 HIGHSCORE_FILE = "highscore_all.json"
 
 def load_highscore():
-    print("Saving to:", os.path.join(os.path.dirname(__file__), "highscore_all.json"))
     """Load highscore from a JSON file located next to this script; create if missing."""
     try:
-        file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
-        # If file doesn't exist, create it with default highscore 0
+        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
         if not os.path.exists(file_path):
             with open(file_path, "w") as f:
                 json.dump({"highscore": 0}, f)
@@ -71,42 +62,59 @@ def load_highscore():
             data = json.load(f)
             return int(data.get("highscore", 0))
     except Exception as e:
-        # Log and return 0 on any error to keep game running
         print("Error loading highscore:", e)
         return 0
-    
-
 
 def save_highscore(score):
+    global highscore
     if score >= highscore:
-        """Save highscore to a JSON file located next to this script using an atomic replace."""
         try:
-            file_path = os.path.join(os.path.dirname(__file__), "highscore_all.json")
-            # Ensure directory exists (usually it's the script dir, but be safe)
+            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
             tmp_path = file_path + ".tmp"
-            # Write to a temp file and atomically replace the target to avoid partial writes
             with open(tmp_path, "w") as f:
                 json.dump({"highscore": int(score)}, f)
                 f.flush()
-                try:
-                    os.fsync(f.fileno())
-                except Exception:
-                    # os.fsync may not be available on some platforms or file descriptors
-                    pass
+                try: os.fsync(f.fileno())
+                except Exception: pass
             os.replace(tmp_path, file_path)
         except Exception as e:
             print("Error saving highscore:", e)
-    else:
-        # No update needed
-        pass
-
-
 
 highscore = load_highscore()
 
+# --- CALIBRATION LOADING ---
+def load_calibration():
+    """Loads calibration values from the sibling 'Calibration' folder."""
+    global val_flexion, val_extension
+    
+    val_flexion = 0
+    val_extension = 1023
 
+    try:
+        # 1. Get folder of this script
+        game_dir = os.path.dirname(__file__)
+        # 2. Go up to main folder
+        main_dir = os.path.dirname(game_dir)
+        # 3. Build path to Calibration
+        file_path = os.path.join(main_dir, "Calibration", "calibration_data.json")
+        
+        print(f"Looking for calibration at: {file_path}")
+
+        with open(file_path, "r") as f:
+            data = json.load(f)
+            # For this game we use the Full Range (Flexion -> Extension)
+            val_flexion = data.get("flexion_position", 0)
+            val_extension = data.get("extension_position", 1023)
+            print(f"Calibration Loaded: Flexion={val_flexion}, Extension={val_extension}")
+            
+    except FileNotFoundError:
+        print(f"ERROR: File not found at: {file_path}")
+        print("Using defaults.")
+    except Exception as e:
+        print(f"Error loading calibration: {e}")
 # --- Image loading (with safe fallbacks) ---
+
 def load_image(path, size, fallback="rect"):
     try:
         img = Image.open(path).resize(size)
@@ -135,9 +143,9 @@ blue_bird_photo  = load_image(r"Game 2 - All\blue_bird.png", (70, 50), fallback=
 bomb_photo       = load_image(r"Game 2 - All\Bomb.png", (50, 50), fallback="red")
 explosion_photo  = load_image(r"Game 2 - All\Explosion.png", (80, 80), fallback="Explosion")
 
+
 # --- Arduino detection ---
 def find_arduino_port():
-    """Automatically detect the Arduino serial port on any OS."""
     if sys.platform.startswith('win'):
         ports = [f'COM{i + 1}' for i in range(256)]
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
@@ -145,7 +153,7 @@ def find_arduino_port():
     elif sys.platform.startswith('darwin'):
         ports = glob.glob('/dev/cu.usb*')
     else:
-        raise EnvironmentError('Unsupported platform')
+        return None
 
     for port in ports:
         try:
@@ -157,21 +165,15 @@ def find_arduino_port():
     return None
 
 def connect_arduino():
-    """Try to connect to Arduino (non-blocking; flush startup backlog)."""
     global arduino
     port = find_arduino_port()
     if not port:
         print("No Arduino found. Basket will use keyboard control.")
         return None
     try:
-        # timeout=0 makes reads non-blocking; readline() returns immediately if nothing available
         arduino = serial.Serial(port, 9600, timeout=0)
-        time.sleep(2)  # allow board reset
-        # Clear any noise/backlog accumulated during reset
-        try:
-            arduino.reset_input_buffer()
-        except AttributeError:
-            arduino.flushInput()
+        time.sleep(2)
+        arduino.reset_input_buffer()
         print(f"Connected to Arduino on {port}")
         return arduino
     except Exception as e:
@@ -179,89 +181,6 @@ def connect_arduino():
         arduino = None
         return None
 
-def calibrate_potentiometer():
-    global min_angle, max_angle, angle
-
-    min_angle, max_angle = 9999, -9999
-
-    cal_win = Toplevel(root)
-    cal_win.title("Potentiometer Calibration")
-    cal_win.geometry("400x200")
-    cal_win.resizable(False, False)
-
-    cal_canvas = Canvas(cal_win, width=400, height=200)
-    cal_canvas.pack()
-
-    msg = cal_canvas.create_text(
-        200, 50,
-        text="Move wrist freely\nPress SPACE when done",
-        font=("Arial", 12),
-        fill="black",
-        width=380,
-        justify="center"
-    )
-
-    angle_text = cal_canvas.create_text(
-        200, 110,
-        text="Angle: --°",
-        font=("Arial", 24, "bold"),
-        fill="blue"
-    )
-
-    if arduino:
-        try:
-            arduino.reset_input_buffer()
-        except:
-            pass
-        time.sleep(0.3)
-
-    cal_done = {"done": False}
-    cal_win.bind("<space>", lambda e: cal_done.update(done=True))
-
-    def read_latest_angle():
-        """Return newest PotNumber or None."""
-        if not arduino:
-            return None
-
-        value = None
-        while arduino.in_waiting > 0:
-            update_from_arduino()
-            value = angle
-        return value
-
-    def update_cal():
-        nonlocal angle_text
-        global min_angle, max_angle
-
-        if cal_done["done"] or ButtonPress == 1:
-            total_range = max_angle - min_angle
-
-            if total_range < 10:
-                min_angle, max_angle = 0, 1023
-                total_range = 1023
-
-            cal_canvas.itemconfig(
-                msg,
-                text=f"Calibration done!\nRange: {total_range:.0f}"
-            )
-            root.after(700, cal_win.destroy)
-            return
-
-        angle = read_latest_angle()
-        if angle is not None:
-            cal_canvas.itemconfig(angle_text, text=f"Angle: {angle:.0f}")
-
-            if angle < min_angle:
-                min_angle = angle
-            if angle > max_angle:
-                max_angle = angle
-
-        cal_win.after(30, update_cal)
-
-    update_cal()
-    root.wait_window(cal_win)
-
-    
 # --- Game Classes ---
 class Bird:
     def __init__(self, canvas_obj, x, y, color):
@@ -285,7 +204,6 @@ class Bird:
         if not bird_coords:
             return
         bird_x, bird_y = bird_coords[0], bird_coords[1]
-
 
         # Reached the basket (left edge)
         if bird_x <= 50:
@@ -316,7 +234,6 @@ class Basket:
         self.canvas.tag_raise(self.basket)
 
     def set_position(self, y):
-        """Move basket to a specific y-coordinate."""
         global dist
         dist = int(y)
         self.canvas.coords(self.basket, 10, dist)
@@ -326,22 +243,18 @@ class Basket:
 
 # --- Functions ---
 def bird_set():
-    """Spawn a bird at a random y, blue 70% / red 30%."""
     y_value = randint(50, HEIGHT - 100)
     color = "blue" if randint(1, 10) <= 7 else "red"
     bird = Bird(canvas, WIDTH - 80, y_value, color)
     bird.move_bird()
     canvas.tag_raise(bar_obj.basket)
 
-
 def change_lives(amount):
-    """Change lives and handle game over logic."""
     global lives, game_active, Total_lives_text, total_score, speed_value
     if not game_active:
         return
     
     lives += amount
-    # Only update the canvas text if the text item exists
     if Total_lives_text is not None:
         canvas.itemconfig(Total_lives_text, text=f"Lives: {lives}")
 
@@ -351,14 +264,11 @@ def change_lives(amount):
         score_board("No lives left! Game Over!")
         save_highscore(total_score)
         total_score = 0
-        lives = 3  # reset lives for next game
+        lives = 3 
         speed_value = base_speed
         return
-  
-    
 
 def change_score(amount):
-    """Change score and handle win/lose logic."""
     global score, total_score, speed_value, game_active, level, base_speed
 
     if not game_active:
@@ -370,7 +280,6 @@ def change_score(amount):
     canvas.itemconfig(Level_score_text, text=f"Level Score: {score}")
     canvas.itemconfig(Total_score_text, text=f"Total Score: {total_score}")
 
-    # Lose condition: score returns to 0 after having been >0
     if score == 0 and previous_score >= 0:
         game_active = False
         bar_obj.delete_basket()
@@ -379,11 +288,9 @@ def change_score(amount):
         level = 1
         speed_value = base_speed
 
-    # Win condition: reach 30 points → next level
     elif score >= 30:
         game_active = False
         level += 1
-        # Increase speed based on base speed from slider
         speed_value = base_speed + level - 1
         bar_obj.delete_basket()
         score_board(f"You reached {total_score} points!\nNext level unlocked!\n(Level {level})")
@@ -398,14 +305,12 @@ def on_key_press(event):
         bar_obj.set_position(dist)
 
 def score_board(message="Game Over!"):
-    # Use Toplevel instead of a second Tk root
     top = Toplevel(root)
     top.title("Game Over")
     top.resizable(False, False)
     c2 = Canvas(top, width=400, height=350)
     c2.pack()
 
-    # Text label and add a highscore line
     c2.create_text(
         200, 120,
         text=f"{message}\n\nYour score: {total_score}\n\nHighscore: {highscore}\n\n",
@@ -414,7 +319,6 @@ def score_board(message="Game Over!"):
         justify="center"
     )
 
-    # Buttons
     def _play_again():
         top.destroy()
         main()
@@ -427,7 +331,6 @@ def score_board(message="Game Over!"):
                       font=("Arial", 16, "bold"), command=_play_again)
     btn_exit = Button(c2, text="EXIT", bg="red", fg="white",
                       font=("Arial", 16, "bold"), command=_exit)
-    # Place buttons
     c2.create_window(200, 220, window=btn_play)
     c2.create_window(200, 280, window=btn_exit)
 
@@ -446,22 +349,20 @@ def score_board(message="Game Over!"):
                 root.after(50, check_button_press_after)
     check_button_press_after()
 
-
-
 def start_menu():
     global ButtonPress
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
 
     canvas.create_text(WIDTH // 2, 100, text=" Catch the Bird Game ",
-                       font=("Comic Sans MS", 40, "bold"), fill="black")
-#The player has three lives and they lose a life, if they are hit by bombs, or if they miss a bird
+                        font=("Comic Sans MS", 40, "bold"), fill="black")
+
     canvas.create_text(WIDTH // 2, 220,
-                       text="\n Blue bird = +1 point\nHit the bomb or miss a bird = -1 life\nYou have 3 lives\nIf you reach 30 points you level up!\nCatch blue birds, avoid bombs!",
-                       font=("Comic Sans MS", 18), fill="black", justify="center")
+                        text="\n Blue bird = +1 point\nHit the bomb or miss a bird = -1 life\nYou have 3 lives\nIf you reach 30 points you level up!\nCatch blue birds, avoid bombs!",
+                        font=("Comic Sans MS", 18), fill="black", justify="center")
 
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (1 - 6):",
-                       font=("Comic Sans MS", 20), fill="black")
+                        font=("Comic Sans MS", 20), fill="black")
 
     speed_slider = Scale(canvas, from_=1, to=6, orient=HORIZONTAL, length=400,
                          font=("Comic Sans MS", 16))
@@ -475,19 +376,18 @@ def start_menu():
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
     
-    # Add Back to Launcher button if launched from game launcher
+    # Back to Launcher button
     if len(sys.argv) >= 3:
         back_button = Button(canvas, text="← Back to Launcher", font=("Comic Sans MS", 14),
-                           bg="#e74c3c", fg="white",
-                           command=lambda: root.destroy())
+                             bg="#e74c3c", fg="white",
+                             command=lambda: root.destroy())
         back_button.place(x=10, y=10)
         menu_widgets.append(back_button)
-
 
     def check_button_press_start():
         global ButtonPress
         update_from_arduino()
-        #print(normalized)
+        
         if normalized < 1/6:
             speed_slider.set(1)
         elif normalized < 2/6:
@@ -507,7 +407,6 @@ def start_menu():
             canvas.after(50, check_button_press_start)
     check_button_press_start()
 
-
 def start_game(selected_speed):
     global speed_value, base_speed, level, ButtonPress
     base_speed = selected_speed
@@ -519,76 +418,76 @@ def start_game(selected_speed):
     main()
 
 def update_from_arduino():
-    global ButtonPress, normalized, Previous, raw, min_angle, max_angle, angle
-    """Read potentiometer and move basket (consume backlog, use latest)."""
+    global ButtonPress, normalized, Previous, raw, angle, val_flexion, val_extension
+    
     if arduino:
         latest = None
-        #print("Latest = 0")
         try:
-            # Drain all currently queued lines and keep only the newest valid numeric one
-            while True:
-                #if hasattr(arduino, "in_waiting"):
-                 #   if arduino.in_waiting == 0:
-                  #      break
-                Previous = raw
-                raw = arduino.readline()  # non-blocking due to timeout=0
-                #print("Ardu Read")
-                #print(raw)
-                if not raw:
-                    break
-                s = Previous.decode('utf-8', errors='ignore').strip()
-                #print(s)
-                if not s:
-                    continue
+            while arduino.in_waiting > 0:
+                raw = arduino.readline()
+                if not raw: break
+                s = raw.decode('utf-8', errors='ignore').strip()
+                if not s: continue
+                
+                # Parsing logic (handles "Button: X Pot: Y" or just numbers)
                 split = s.split(" ")
-
-                ButtonNumber = float(split[1])
-                PotNumber = float(split[3])
-
-                latest = PotNumber
-
-                if ButtonNumber == 2001:
-                        ButtonPress = 1
-                        #print(ButtonPress)
-                        #print("ButtonPressed")
-                elif ButtonNumber == 2000:
-                        ButtonPress = 0
-
+                try:
+                    if len(split) >= 4 and split[2] == "Pot:":
+                        PotNumber = float(split[3])
+                        ButtonNumber = float(split[1])
+                    else:
+                        PotNumber = float(s)
+                        ButtonNumber = 0 # Default if no button data
+                    
+                    latest = PotNumber
+                    
+                    if ButtonNumber == 2001:
+                         ButtonPress = 1
+                    elif ButtonNumber == 2000:
+                         ButtonPress = 0
+                except ValueError:
+                    continue
 
             if latest is not None:
                 angle = latest
 
-                # Clamp to range (safety)
-                angle = max(0, min(1023, angle))
+                # --- MAPPING LOGIC ---
+                # Calculate Total Range (Flexion to Extension)
+                cal_range = val_extension - val_flexion
+                
+                if cal_range == 0:
+                    normalized = 0.5
+                else:
+                    # 0.0 = Flexion (Bottom), 1.0 = Extension (Top)
+                    # Clamp angle to calibrated limits
+                    cal_min = min(val_flexion, val_extension)
+                    cal_max = max(val_flexion, val_extension)
+                    clamped_angle = max(cal_min, min(cal_max, angle))
+                    
+                    normalized = (clamped_angle - val_flexion) / cal_range
 
-                # --- Screen mapping using calibrated range ---
-
-                # Avoid divide-by-zero if calibration failed
-                cal_range = max(10, max_angle - min_angle)
-
-                # Normalize based on calibration
-                normalized = (angle - min_angle) / cal_range
-                normalized = max(0, min(1, normalized))  # clamp 0–1
-
+                # Map normalized value to Screen Y
+                # normalized=0 (Flexion) -> Y=Bottom (Height - 120)
+                # normalized=1 (Extension) -> Y=Top (0)
                 top_limit = 0
-                bottom_limit = HEIGHT - 120  # basket height = 120
-
-
-                # Invert so higher angle = higher (top of screen)
+                bottom_limit = HEIGHT - 120
+                
                 y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
 
-                # Clamp and apply
+                # Clamp final position
                 y_pos = max(top_limit, min(bottom_limit, y_pos))
-                bar_obj.set_position(int(y_pos))
+                
+                if bar_obj:
+                    bar_obj.set_position(int(y_pos))
 
         except Exception:
-            # Keep loop alive on serial hiccups
             pass
 
     root.after(50, update_from_arduino)
+
 def main():
     global bar_obj, total_score, score, dist, Total_score_text, Level_score_text, Total_lives_text, game_active, highscore
-    game_active = True  # reset so birds move again
+    game_active = True
     score = 0
     dist = 350
 
@@ -598,16 +497,16 @@ def main():
     highscore = load_highscore()
 
     Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
-                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+                                        font=("Comic Sans MS", 20, "bold"), fill="black")
 
     Total_score_text = canvas.create_text(480, 30, text=f"Total Score: {total_score}",
-                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+                                        font=("Comic Sans MS", 20, "bold"), fill="black")
 
     Level_score_text = canvas.create_text(700, 30, text=f"Level Score: {score}",
-                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+                                        font=("Comic Sans MS", 20, "bold"), fill="black")
     
     Highscore_text = canvas.create_text(260, 30, text=f"Highscore: {highscore}",
-                                    font=("Comic Sans MS", 20, "bold"), fill="black")
+                                        font=("Comic Sans MS", 20, "bold"), fill="black")
 
     bar_obj = Basket(canvas, 10, dist)
 
@@ -616,7 +515,6 @@ def main():
     root.bind("<w>", on_key_press)
     root.bind("<s>", on_key_press)
 
-    # Clear any residual bytes before polling begins (belt & suspenders)
     if arduino:
         try:
             arduino.reset_input_buffer()
@@ -624,17 +522,11 @@ def main():
             arduino.flushInput()
 
     bird_set()
-    root.after(100, update_from_arduino)  # start reading potentiometer
+    root.after(100, update_from_arduino)
 
 # --- Run ---
 connect_arduino()
-
-# Only calibrate if no command-line args provided (launched directly)
-if len(sys.argv) < 3:
-    if arduino:
-        calibrate_potentiometer()
-else:
-    print(f"Using provided calibration: {min_angle}° to {max_angle}°")
+load_calibration() # Load centralized calibration
 
 start_menu()
 root.mainloop()
