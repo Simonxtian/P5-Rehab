@@ -37,6 +37,17 @@
         "theta_target_deg": 60.0,
         "amax_deg_s2": 100.0,
         "difficulty": 0.6
+      },
+      {
+        "timestamp": "2025-11-18T14:00:56.307936",
+        "tau_max": 0.57692,
+        "tau_ref": 0.34615199999999996,
+        "J": 0.1983304867001247,
+        "B": 0.5632958261588493,
+        "K": 0.3305508111668745,
+        "theta_target_deg": 60.0,
+        "amax_deg_s2": 100.0,
+        "difficulty": 0.6
       }
     ]
   },
@@ -46,5 +57,35 @@
     "difficulty": 0.6,
     "created": "2025-11-18T13:52:00.039383",
     "sessions": []
+  },
+  "sonia": {
+    "name": "Sonia",
+    "weight": 40.0,
+    "difficulty": 0.6,
+    "created": "2025-11-18T14:03:11.186812",
+    "sessions": [
+      {
+        "timestamp": "2025-11-18T14:03:26.087480",
+        "tau_max": 0.43113,
+        "tau_ref": 0.258678,
+        "J": 0.1482115765288511,
+        "B": 0.42094870958168346,
+        "K": 0.24701929421475186,
+        "theta_target_deg": 60.0,
+        "amax_deg_s2": 100.0,
+        "difficulty": 0.6
+      },
+      {
+        "timestamp": "2025-11-18T14:21:11.006777",
+        "tau_max": -0.35087,
+        "tau_ref": 0.0,
+        "J": 0.0,
+        "B": 0.0,
+        "K": 0.0,
+        "theta_target_deg": 60.0,
+        "amax_deg_s2": 100.0,
+        "difficulty": 0.6
+      }
+    ]
   }
 }
