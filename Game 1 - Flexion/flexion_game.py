@@ -125,7 +125,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         ports = []
     for p in ports:
@@ -327,28 +327,41 @@ class FishingGame:
     
     # --- ARDUINO POLLING (UPDATED FOR NEW CALIBRATION) ---
     def update_from_arduino(self):
-        global val_recta, val_flexion
-        
-        if self.arduino:
+        global normalized, Previous, raw, min_angle, max_angle, angle, val_recta, val_flexion
+        """Read potentiometer and move basket (consume backlog, use latest)."""
+        if arduino:
             latest = None
+            #print("Latest = 0")
             try:
-                while self.arduino.in_waiting > 0:
-                    raw = self.arduino.readline()
-                    if not raw: continue
-                    s = raw.decode('utf-8', errors='ignore').strip()
-                    if not s: continue
-                    
-                    # Assuming format "Button: X Pot: Y" or just "Y"
-                    # Adjust this parsing to match your Arduino output exactly
-                    split = s.split(" ")
-                    try:
-                        if len(split) >= 4 and split[2] == "Pot:":
-                             val = float(split[3])
-                        else:
-                             val = float(s) # Fallback if it sends just numbers
-                        latest = val
-                    except ValueError:
+                # Drain all currently queued lines and keep only the newest valid numeric one
+                while True:
+                    #if hasattr(arduino, "in_waiting"):
+                    #   if arduino.in_waiting == 0:
+                    #      break
+                    Previous = raw
+                    raw = arduino.readline()  # non-blocking due to timeout=0
+                    #print("Ardu Read")
+                    #print(raw)
+                    if not raw:
+                        break
+                    s = Previous.decode('utf-8', errors='ignore').strip()
+                    #print(s)
+                    if not s:
                         continue
+                    split = s.split(" ")
+
+                    ButtonNumber = float(split[1])
+                    PotNumber = float(split[3])
+
+                    latest = PotNumber
+
+                    if ButtonNumber == 2001:
+                            self.button_pressed = 1
+                            #print(ButtonPress)
+                            #print("ButtonPressed")
+                    elif ButtonNumber == 2000:
+                            self.button_pressed = 0
+
 
                 if latest is not None:
                     angle = latest
