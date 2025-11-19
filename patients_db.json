@@ -37,6 +37,24 @@
         "theta_target_deg": 60.0,
         "amax_deg_s2": 100.0,
         "difficulty": 0.6
+      },
+      {
+        "timestamp": "2025-11-19T13:38:27.934918",
+        "tau_max": 0.55861,
+        "tau_ref": 0.335166,
+        "J": 0.1920359723628175,
+        "B": 0.545418223411556,
+        "K": 0.3200599539380292,
+        "difficulty": 0.6
+      },
+      {
+        "timestamp": "2025-11-19T13:39:58.872836",
+        "tau_max": -0.00532,
+        "tau_ref": 0.0,
+        "J": 0.0,
+        "B": 0.0,
+        "K": 0.0,
+        "difficulty": 0.6
       }
     ],
     "highscore": 0
@@ -66,6 +84,5 @@
     "highscore_flex": 0,
     "highscore_all": 0,
     "highscore_extend": 0
-
   }
 }
