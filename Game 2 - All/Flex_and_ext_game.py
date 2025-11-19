@@ -186,7 +186,7 @@ def connect_arduino():
         print("No Arduino found. Basket will use keyboard control.")
         return None
     try:
-        arduino = serial.Serial(port, 9600, timeout=0)
+        arduino = serial.Serial(port, 115200, timeout=0)
         time.sleep(2)
         arduino.reset_input_buffer()
         print(f"Connected to Arduino on {port}")

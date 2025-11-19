@@ -17,7 +17,7 @@ from datetime import datetime
 DEFAULT_BAUD = 115200
 DEFAULT_PORT = None 
 PATIENT_DB_FILE = "patients_db.json"
-CALIBRATION_FILE = "calibration_data.json"
+CALIBRATION_FILE = r"WristRehab\calibration_data.json"
 
 # --- GAME PATHS (Adjust these to your actual file locations) ---
 # Use raw strings (r"path") or forward slashes
@@ -768,23 +768,19 @@ class RehabGUI:
         self.frm_game_select.pack(fill="both", expand=True, padx=10, pady=10)
 
     def launch_game(self, script_name):
-        if not os.path.exists(script_name):
-            messagebox.showerror("Error", f"Game file not found:\n{script_name}")
-            return
-        
-        # CRITICAL: Disconnect serial so the game can use it
-        if self.connected:
-            if messagebox.askokcancel("Disconnecting", "The GUI must disconnect so the game can use the Serial Port.\n\nLaunch game?"):
-                self.on_connect() # This toggles it OFF
-            else:
+            if not os.path.exists(script_name):
+                messagebox.showerror("Error", f"Game file not found:\n{script_name}")
                 return
-
-        try:
-            # Launch external script
-            subprocess.Popen([sys.executable, script_name])
-        except Exception as e:
-            messagebox.showerror("Launch Error", str(e))
-
+            
+            if self.connected:
+                self._log(f"# Auto-disconnecting to launch game: {os.path.basename(script_name)}")
+                self.on_connect()  # This runs the disconnect logic
+                
+            try:
+                # Launch external script
+                subprocess.Popen([sys.executable, script_name])
+            except Exception as e:
+                messagebox.showerror("Launch Error", str(e))
 # -----------------------------------------------------------------------------
 # MAIN
 # -----------------------------------------------------------------------------
