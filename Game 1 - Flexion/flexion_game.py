@@ -10,7 +10,7 @@ ROD_Y = 20
 ROD_SWEEP_SPEED = 4
 ROPE_MAX_LEN = HEIGHT - 60
 UPDATE_MS = 25
-ARDUINO_BAUD = 9600
+ARDUINO_BAUD = 115200
 
 OBJECT_TYPES = [
     ("gold", "gold.png", +2),
@@ -25,6 +25,9 @@ arduino = None
 # Se establecerán en la calibración
 min_angle = 60.0
 max_angle = 120.0
+raw = None
+Previous = None
+
 
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_flex.json"
@@ -130,10 +133,12 @@ def find_arduino_port():
         ports = glob.glob('/dev/cu.usb*')
     else:
         ports = []
+
     for p in ports:
         try:
-            s = serial.Serial(p); s.close()
-            return p
+            s = serial.Serial(p)  # try opening
+            s.close()
+            return p  # return the first valid port as string
         except Exception:
             continue
     return None
@@ -144,8 +149,8 @@ def connect_arduino():
         print("No Arduino found (keyboard only).")
         return None
     try:
-        s = serial.Serial(port, ARDUINO_BAUD, timeout=0)
-        time.sleep(2)
+        s = serial.Serial(port, ARDUINO_BAUD, timeout=0)  # timeout>0 for readline
+        time.sleep(2)  # wait for Arduino reset
         s.reset_input_buffer()
         print("Connected to Arduino:", port)
         return s
@@ -156,6 +161,7 @@ def connect_arduino():
 # --- GAME CLASS ---
 class FishingGame:
     def __init__(self, root):
+        self.last_button_state = 0
         self.root = root
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
@@ -335,69 +341,47 @@ class FishingGame:
     
     # --- ARDUINO POLLING (UPDATED FOR NEW CALIBRATION) ---
     def update_from_arduino(self):
-        global normalized, Previous, raw, min_angle, max_angle, angle, val_recta, val_flexion
-        """Read potentiometer and move basket (consume backlog, use latest)."""
-        if arduino:
-            latest = None
-            #print("Latest = 0")
+        global angle, val_recta, val_flexion
+
+        if self.arduino:
             try:
-                # Drain all currently queued lines and keep only the newest valid numeric one
+                latest_line = None
                 while True:
-                    #if hasattr(arduino, "in_waiting"):
-                    #   if arduino.in_waiting == 0:
-                    #      break
-                    Previous = raw
-                    raw = arduino.readline()  # non-blocking due to timeout=0
-                    #print("Ardu Read")
-                    #print(raw)
-                    if not raw:
+                    line = self.arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line:
                         break
-                    s = Previous.decode('utf-8', errors='ignore').strip()
-                    #print(s)
-                    if not s:
-                        continue
-                    split = s.split(" ")
+                    latest_line = line
 
-                    ButtonNumber = float(split[1])
-                    PotNumber = float(split[3])
+                if latest_line:
+                    print("Received:", latest_line)
 
-                    latest = PotNumber
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        ButtonNumber = int(float(parts[1]))
+                        PotNumber = float(parts[3])
 
-                    if ButtonNumber == 2001:
-                            self.button_pressed = 1
+                        # Rising edge detection
+                        if ButtonNumber == 2001 and self.last_button_state != 2001:
                             self.toggle_sweep()
-                            #print(ButtonPress)
-                            #print("ButtonPressed")
-                    elif ButtonNumber == 2000:
-                            self.button_pressed = 0
 
+                        self.last_button_state = ButtonNumber
+                        angle = PotNumber
 
-                if latest is not None:
-                    angle = latest
-                    
-                    # --- NEW MAPPING LOGIC ---
-                    # Range calculation
-                    cal_range = val_flexion - val_recta
-                    
-                    if cal_range == 0:
-                        self.pot_normalized = 0
-                    else:
-                        # Clamp the raw value between Recta and Flexion limits
-                        cal_min = min(val_recta, val_flexion)
-                        cal_max = max(val_recta, val_flexion)
-                        clamped_angle = max(cal_min, min(cal_max, angle))
-                        
-                        # Normalize (0.0 = Recta/Top, 1.0 = Flexion/Bottom)
-                        self.pot_normalized = (clamped_angle - val_recta) / cal_range
+                        # Map to rope length
+                        cal_range = val_flexion - val_recta
+                        if cal_range != 0:
+                            clamped = max(min(angle, max(val_recta, val_flexion)), min(val_recta, val_flexion))
+                            self.pot_normalized = (clamped - val_recta) / cal_range
+                        else:
+                            self.pot_normalized = 0
 
-                    if not self.sweeping:
-                        y_pos = self.pot_normalized * ROPE_MAX_LEN
-                        self.set_rope(int(y_pos))
+                        if not self.sweeping:
+                            self.set_rope(int(self.pot_normalized * ROPE_MAX_LEN))
 
             except Exception as e:
-                pass
+                print("Arduino read error:", e)
 
-        self.root.after(50, self.update_from_arduino)
+        self.root.after(25, self.update_from_arduino)
 
     # --- UPDATE LOOP ---
     def update(self):
@@ -405,11 +389,10 @@ class FishingGame:
         if self.game_over: return
 
         if self.waiting_for_retraction:
-        
-            if self.rope_len < 10:  
+            if self.rope_len < 10:
                 self.waiting_for_retraction = False
-                self.sweeping = True
-                self.stopped = False
+            return
+
 
         elif self.sweeping:
             self.rod_x += self.rod_dir * self.sweep_speed

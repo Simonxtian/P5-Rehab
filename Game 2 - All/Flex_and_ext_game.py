@@ -36,7 +36,7 @@ normalized = 0
 raw = None
 Previous = None
 angle = None
-
+current_session_highscore = 0
 
 # --- Tkinter setup ---
 root = Tk()
@@ -66,7 +66,8 @@ def load_highscore():
         return 0
 
 def save_highscore(score):
-    global highscore
+    global highscore, current_session_highscore
+    """Save highscore to a JSON file located next to this script."""
     if score >= highscore:
         try:
             file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
@@ -74,6 +75,20 @@ def save_highscore(score):
             tmp_path = file_path + ".tmp"
             with open(tmp_path, "w") as f:
                 json.dump({"highscore": int(score)}, f)
+                f.flush()
+                try: os.fsync(f.fileno())
+                except Exception: pass
+            os.replace(tmp_path, file_path)
+        except Exception as e:
+            print("Error saving highscore:", e)
+    """save session highscore if higher than previous"""
+    if score >= current_session_highscore: #currently overwrites highscore and only saves session highscore
+        try:
+            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            tmp_path = file_path + ".tmp"
+            with open(tmp_path, "w") as f:
+                json.dump({"session_highscore": int(score)}, f)
                 f.flush()
                 try: os.fsync(f.fileno())
                 except Exception: pass
@@ -171,7 +186,7 @@ def connect_arduino():
         print("No Arduino found. Basket will use keyboard control.")
         return None
     try:
-        arduino = serial.Serial(port, 9600, timeout=0)
+        arduino = serial.Serial(port, 115200, timeout=0)
         time.sleep(2)
         arduino.reset_input_buffer()
         print(f"Connected to Arduino on {port}")
