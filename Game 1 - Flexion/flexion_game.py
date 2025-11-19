@@ -364,6 +364,7 @@ class FishingGame:
 
                     if ButtonNumber == 2001:
                             self.button_pressed = 1
+                            self.toggle_sweep()
                             #print(ButtonPress)
                             #print("ButtonPressed")
                     elif ButtonNumber == 2000:
