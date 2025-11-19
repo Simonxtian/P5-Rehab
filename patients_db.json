@@ -38,27 +38,34 @@
         "amax_deg_s2": 100.0,
         "difficulty": 0.6
       }
-    ]
+    ],
+    "highscore": 0
   },
   "bi": {
     "name": "bi",
     "weight": 70.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:52:00.039383",
-    "sessions": []
+    "sessions": [],
+    "highscore": 0
   },
   "nick_gurr": {
     "name": "Nick Gurr",
     "weight": 69.0,
     "difficulty": 0.67,
     "created": "2025-11-19T10:42:57.218926",
-    "sessions": []
+    "sessions": [],
+    "highscore": 0
   },
   "finn_gurmi": {
     "name": "Finn Gurmi",
     "weight": 89.0,
     "difficulty": 0.6,
     "created": "2025-11-19T10:45:47.790563",
-    "sessions": []
+    "sessions": [],
+    "highscore_flex": 0,
+    "highscore_all": 0,
+    "highscore_extend": 0
+
   }
 }
