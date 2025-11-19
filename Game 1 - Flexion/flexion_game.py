@@ -71,37 +71,38 @@ highscore = load_highscore()
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
-    """Carga los valores de calibración desde la carpeta hermana 'Calibration'."""
+    """Loads calibration values from the sibling folder 'Calibration'."""
     global val_recta, val_flexion
     
-    # Valores por defecto
+    # Default values
     val_recta = 0
     val_flexion = 1023
 
     try:
-        # 1. Obtener la carpeta donde está este script (Game 1 - Flexion)
+        # 1. Get the folder where this script is located (Game 1 - Flexion)
         game_dir = os.path.dirname(__file__)
         
-        # 2. Subir un nivel a la carpeta principal (P5-REHAB)
+        # 2. Move one level up to the main folder (P5-REHAB)
         main_dir = os.path.dirname(game_dir)
         
-        # 3. Construir la ruta hacia la carpeta 'Calibration'
-        file_path = os.path.join(main_dir, "Calibration", "calibration_data.json")
+        # 3. Build the path to the 'Calibration' folder
+        file_path = os.path.join(main_dir, "WristRehab", "calibration_data.json")
         
-        print(f"Buscando calibración en: {file_path}") # Para ver si la ruta es correcta
+        print(f"Searching for calibration at: {file_path}")  # To verify the path is correct
 
         with open(file_path, "r") as f:
             data = json.load(f)
-            # Cargamos solo lo que necesitamos
-            val_recta = data.get("posicion_recta", 450)
-            val_flexion = data.get("posicion_flexion", 120)
-            print(f"Calibración Cargada: Recta={val_recta}, Flexión={val_flexion}")
+            # Load only what we need
+            val_recta = data.get("neutral", 450)
+            val_flexion = data.get("flexion", 120)
+            print(f"Calibration Loaded: Neutral={val_recta}, Flexion={val_flexion}")
             
     except FileNotFoundError:
-        print(f"ERROR: No se encontró el archivo en: {file_path}")
-        print("Asegúrate de haber ejecutado Calibration.py primero.")
+        print(f"ERROR: File not found at: {file_path}")
+        print("Make sure you have run Calibration.py first.")
     except Exception as e:
-        print(f"Error cargando calibración: {e}")
+        print(f"Error loading calibration: {e}")
+        
 # --- IMAGE LOADER ---
 def load_image(path, size=None):
     try:

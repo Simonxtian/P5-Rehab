@@ -62,12 +62,10 @@ def calibrate_full_range():
     # Text Elements
     instr_text = cal_canvas.create_text(250, 50, text="STEP 1: Wrist STRAIGHT\nPress SPACE", font=("Arial", 14, "bold"), justify="center", fill="blue")
     val_text = cal_canvas.create_text(250, 130, text="0.00", font=("Arial", 40, "bold"))
-    debug_text = cal_canvas.create_text(250, 200, text="Waiting for data...", font=("Arial", 10), fill="gray")
 
     # Variables
     cal_stage = 1
-    # We keep the keys in Spanish to maintain compatibility with the Game code
-    cal_values = {"posicion_recta": 0, "posicion_flexion": 0, "posicion_extension": 0}
+    cal_values = {"initial_position": 0, "flexion_position": 0, "extension_position": 0}
     current_val = 0.0
 
     def read_serial():
@@ -106,24 +104,22 @@ def calibrate_full_range():
         read_serial()
         
         if cal_stage == 1:
-            cal_values["posicion_recta"] = current_val
-            print(f"--> SAVED STRAIGHT: {current_val}")
+            cal_values["initial_position"] = current_val
             cal_canvas.itemconfig(instr_text, text="STEP 2: MAX FLEXION (Down)\nPress SPACE", fill="green")
             cal_stage = 2
             
         elif cal_stage == 2:
-            cal_values["posicion_flexion"] = current_val
-            print(f"--> SAVED FLEXION: {current_val}")
+            cal_values["flexion_position"] = current_val
             cal_canvas.itemconfig(instr_text, text="STEP 3: MAX EXTENSION (Up)\nPress SPACE", fill="red")
             cal_stage = 3
             
         elif cal_stage == 3:
-            cal_values["posicion_extension"] = current_val
+            cal_values["extension_position"] = current_val
             print(f"--> SAVED EXTENSION: {current_val}")
             
             # Save file
             save_json()
-            cal_canvas.itemconfig(instr_text, text="✅ CALIBRATION SAVED!", fill="black")
+            cal_canvas.itemconfig(instr_text, text="CALIBRATION SAVED!", fill="black")
             root.after(1500, root.destroy)
 
     def save_json():
