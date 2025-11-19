@@ -95,7 +95,11 @@ class PatientDatabase:
             'weight': weight,
             'difficulty': difficulty,
             'created': datetime.now().isoformat(),
-            'sessions': []
+            'sessions': [],
+            'highscore_flex': 0,
+            'highscore_all': 0,
+            'highscore_extend': 0
+            
         }
         self._save_db()
         return patient_id
