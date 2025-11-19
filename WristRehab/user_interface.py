@@ -759,6 +759,8 @@ class RehabGUI:
         try:
             with open(CALIBRATION_FILE, 'w') as f:
                 json.dump(self.cal_data, f, indent=4)
+            flex = self.cal_data.get('flexion', 0.0)
+            ext = self.cal_data.get('extension', 0.0)
             self._log(f"# Calibration saved: {self.cal_data}")
         except Exception as e:
             messagebox.showerror("Error", f"Save failed: {e}")
@@ -767,20 +769,105 @@ class RehabGUI:
         self.frm_cal_wizard.pack_forget()
         self.frm_game_select.pack(fill="both", expand=True, padx=10, pady=10)
 
-    def launch_game(self, script_name):
-            if not os.path.exists(script_name):
-                messagebox.showerror("Error", f"Game file not found:\n{script_name}")
-                return
+    def launch_game(self, script_path):
+            # script_path comes in like: r"Game 3 - Extension\extension.py"
             
+            if not os.path.exists(script_path):
+                messagebox.showerror("Error", f"Game file not found:\n{script_path}")
+                return
+
+            # --- 1. SETUP PATHS & METADATA ---
+            # Get the folder where the game lives (e.g., "Game 3 - Extension")
+            game_dir = os.path.dirname(script_path)
+            game_filename = os.path.basename(script_path)
+            
+            # The score file will be created INSIDE the game folder
+            self.game_score_file = os.path.join(game_dir, "last_score.txt")
+
+            # Determine Game Name & Key
+            game_title = "Unknown Game"
+            score_key = "score_generic"
+            if "Game 1" in script_path or "flexion" in script_path.lower():
+                game_title = "Game 1: Flexion"
+                score_key = "session_highscore_flex"
+            elif "Game 2" in script_path:
+                game_title = "Game 2: Flex & Ext"
+                score_key = "session_highscore_all"
+            elif "Game 3" in script_path:
+                game_title = "Game 3: Extension"
+                score_key = "session_highscore_ext"
+
+            # --- 2. PREPARE CLEANUP ---
+            # Remove old score file if it exists in that specific folder
+            if os.path.exists(self.game_score_file):
+                try: os.remove(self.game_score_file)
+                except: pass
+
+            # --- 3. DISCONNECT SERIAL ---
             if self.connected:
-                self._log(f"# Auto-disconnecting to launch game: {os.path.basename(script_name)}")
-                self.on_connect()  # This runs the disconnect logic
-                
+                self._log(f"# Disconnecting to launch {game_title}...")
+                self.on_connect() 
+                time.sleep(0.5)
+
+            # --- 4. LAUNCH GAME WITH ARGUMENTS ---
             try:
-                # Launch external script
-                subprocess.Popen([sys.executable, script_name])
+                # We pass the Patient ID as an argument!
+                p_id = self.current_patient_id if self.current_patient_id else "guest"
+                
+                self.current_game_process = subprocess.Popen(
+                    [sys.executable, game_filename, p_id],  # <--- Passing ID here
+                    cwd=game_dir  # <--- IMPORTANT: Run inside the game folder
+                )
+                
+                self.btn_goto_games.config(state="disabled")
+                self._log(f"# Launched {game_title} for user '{p_id}'")
+                
+                # Grab current ROM to save later
+                c_flex = self.cal_data.get('flexion', 0.0)
+                c_ext = self.cal_data.get('extension', 0.0)
+
+                # Start monitoring
+                self._monitor_game(game_title, score_key, c_flex, c_ext)
+                
             except Exception as e:
                 messagebox.showerror("Launch Error", str(e))
+                self.on_connect()
+
+    def _monitor_game(self, game_title, score_key, rom_flex, rom_ext):
+        if self.current_game_process.poll() is None:
+            self.root.after(500, lambda: self._monitor_game(game_title, score_key, rom_flex, rom_ext))
+            return
+        
+        self._log("# Game ended. Checking for score...")
+        
+        # 1. Read Score from the SPECIFIC game folder
+        final_score = 0
+        if os.path.exists(self.game_score_file):
+            try:
+                with open(self.game_score_file, "r") as f:
+                    final_score = int(float(f.read().strip()))
+            except:
+                final_score = 0
+            # Clean up
+            try: os.remove(self.game_score_file)
+            except: pass
+        
+        # 2. Save Session to Main DB
+        if self.current_patient_id:
+            session_data = {
+                "timestamp": datetime.now().isoformat(),
+                "type": "GAME_SESSION",
+                "game_name": game_title,
+                "flexion_rom": round(rom_flex, 2),
+                "extension_rom": round(rom_ext, 2),
+                score_key: final_score
+            }
+            self.patient_db.add_session(self.current_patient_id, session_data)
+            messagebox.showinfo("Result", f"Session Saved!\n{game_title}\nScore: {final_score}")
+
+        self.current_game_process = None
+        self.on_connect() 
+        self.btn_goto_games.config(state="normal")
 # -----------------------------------------------------------------------------
 # MAIN
 # -----------------------------------------------------------------------------
