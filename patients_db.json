@@ -46,5 +46,19 @@
     "difficulty": 0.6,
     "created": "2025-11-18T13:52:00.039383",
     "sessions": []
+  },
+  "nick_gurr": {
+    "name": "Nick Gurr",
+    "weight": 69.0,
+    "difficulty": 0.67,
+    "created": "2025-11-19T10:42:57.218926",
+    "sessions": []
+  },
+  "finn_gurmi": {
+    "name": "Finn Gurmi",
+    "weight": 89.0,
+    "difficulty": 0.6,
+    "created": "2025-11-19T10:45:47.790563",
+    "sessions": []
   }
 }
