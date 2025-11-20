@@ -67,36 +67,79 @@ def load_highscore():
 
 def save_highscore(score):
     global highscore, current_session_highscore
-    """Save highscore to a JSON file located next to this script."""
+
+    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+
+    # Load existing data
+    data = {}
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    # Update global highscore
     if score >= highscore:
+        data["highscore"] = int(score)
+
+    # Update session highscore
+    if score >= current_session_highscore:
+        data["session_highscore"] = int(score)
+
+    # Save updated dictionary atomically
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = file_path + ".tmp"
+
+        with open(tmp_path, "w") as f:
+            json.dump(data, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+
+        os.replace(tmp_path, file_path)
+
+    except Exception as e:
+        print("Error saving highscore:", e)
+
+def reset_session_highscore():
+    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+
+    # Load existing data
+    data = {}
+    if os.path.exists(file_path):
         try:
-            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            tmp_path = file_path + ".tmp"
-            with open(tmp_path, "w") as f:
-                json.dump({"highscore": int(score)}, f)
-                f.flush()
-                try: os.fsync(f.fileno())
-                except Exception: pass
-            os.replace(tmp_path, file_path)
-        except Exception as e:
-            print("Error saving highscore:", e)
-    """save session highscore if higher than previous"""
-    if score >= current_session_highscore: #currently overwrites highscore and only saves session highscore
-        try:
-            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            tmp_path = file_path + ".tmp"
-            with open(tmp_path, "w") as f:
-                json.dump({"session_highscore": int(score)}, f)
-                f.flush()
-                try: os.fsync(f.fileno())
-                except Exception: pass
-            os.replace(tmp_path, file_path)
-        except Exception as e:
-            print("Error saving highscore:", e)
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    # Reset session highscore
+    data["session_highscore"] = 0
+
+    # Save updated dictionary atomically
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = file_path + ".tmp"
+
+        with open(tmp_path, "w") as f:
+            json.dump(data, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+
+        os.replace(tmp_path, file_path)
+
+    except Exception as e:
+        print("Error resetting session highscore:", e)
 
 highscore = load_highscore()
+reset_session_highscore()
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
