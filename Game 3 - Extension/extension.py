@@ -10,7 +10,7 @@ STAR_Y = 5  # Y coordinate of the top edge of the star
 PLATFORM_COUNT = 9  # Total steps needed (8 platforms + 1 star)
 PLATFORM_WIDTH, PLATFORM_HEIGHT = 180, 50
 PLATFORM_MIN_SPEED, PLATFORM_MAX_SPEED = 1.5, 3.5
-ARDUINO_BAUD = 9600
+ARDUINO_BAUD = 115200
 ROCKET_SIZE = (50, 70)  # (width, height)
 
 # Vertical layout constants
@@ -124,7 +124,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         ports = []
     for p in ports:
