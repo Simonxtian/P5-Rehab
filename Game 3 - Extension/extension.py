@@ -561,7 +561,6 @@ def start_menu(root):
                     latest_line = line
 
                 if latest_line:
-                    print("Received:", latest_line)
                     parts = latest_line.split(" ")
                     if len(parts) >= 4:
                         ButtonNumber = int(float(parts[1]))
