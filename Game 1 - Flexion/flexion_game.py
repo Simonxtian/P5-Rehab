@@ -453,7 +453,6 @@ class FishingGame:
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
             command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
 
-        # ------------ FIXED POLLING LOOP ------------
         def poll_end_menu():
             # continue reading Arduino
             self.update_from_arduino()
