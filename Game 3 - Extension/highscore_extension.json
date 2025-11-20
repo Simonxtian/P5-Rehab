@@ -1,0 +1,7 @@
+{
+  "guest": {
+    "name": "Guest",
+    "highscore": 1,
+    "session_highscore": 1
+  }
+}
