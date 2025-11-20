@@ -196,6 +196,28 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-20T10:43:23.309203",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 41.05,
+        "extension_rom": 34.69,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-20T10:45:35.893466",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.02998,
+        "mvc_tau_ref": 0.017988,
+        "flexion_rom": 38.15,
+        "extension_rom": 36.54,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
       }
     ]
   }
