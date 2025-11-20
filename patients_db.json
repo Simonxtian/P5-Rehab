@@ -202,6 +202,72 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-20T11:07:15.449658",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 33.93,
+        "extension_rom": 36.81,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-20T11:19:16.888077",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 27.59,
+        "extension_rom": 46.83,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 9
+      },
+      {
+        "timestamp": "2025-11-20T11:25:28.213977",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.06305,
+        "mvc_tau_ref": 0.037829999999999996,
+        "flexion_rom": 22.58,
+        "extension_rom": 46.83,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 9
+      },
+      {
+        "timestamp": "2025-11-20T11:28:07.233240",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.0087,
+        "mvc_tau_ref": 0.00522,
+        "flexion_rom": 32.08,
+        "extension_rom": 39.97,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 9
+      },
+      {
+        "timestamp": "2025-11-20T11:43:05.770638",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.02035,
+        "mvc_tau_ref": 0.01221,
+        "flexion_rom": 11.76,
+        "extension_rom": 18.59,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-20T11:48:06.931528",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.06368,
+        "mvc_tau_ref": 0.038208,
+        "flexion_rom": 12.81,
+        "extension_rom": 18.86,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 8
       }
     ]
   }
