@@ -1,9 +1,7 @@
 {
-  "session_highscore": 9,
-  "highscore": 9,
   "sonia": {
     "name": "sonia",
     "highscore": 8,
-    "session_highscore": 8
+    "session_highscore": 5
   }
 }

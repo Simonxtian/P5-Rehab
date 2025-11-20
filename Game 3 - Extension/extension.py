@@ -24,92 +24,122 @@ arduino = None
 last_button_state = 0
 ButtonPress = 0
 
+# --- Patient Data Defaults ---
+PATIENT_ID = "guest"
+PATIENT_NAME = "Guest"
+
+# Check command line args: python extension.py <id> <name>
+if len(sys.argv) >= 2:
+    PATIENT_ID = sys.argv[1]
+if len(sys.argv) >= 3:
+    PATIENT_NAME = sys.argv[2]
+
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_extension.json"
 
-def load_highscore():
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                json.dump({"highscore": 0}, f)
-            return 0
-        with open(file_path, "r+") as f:
-            data = json.load(f)
-            return int(data.get("highscore", 0))
-    except Exception as e:
-        print("Error loading highscore:", e)
-        return 0
+def get_highscore_file_path():
+    return os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
-def load_session_highscore():
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                json.dump({"session_highscore": 0}, f)
-            return 0
-        with open(file_path, "r+") as f:
-            data = json.load(f)
-            return int(data.get("session_highscore", 0))
-    except Exception as e:
-        print("Error loading session highscore:", e)
-        return 0
-
-def save_highscore(score):
-    global highscore, current_session_highscore
-    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-    data = {}
+def load_patient_data():
+    """
+    Loads the entire JSON, returns the specific data for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
     if os.path.exists(file_path):
         try:
             with open(file_path, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    if score >= highscore:
-        data["highscore"] = int(score)
-    if score >= current_session_highscore:
-        data["session_highscore"] = int(score)
+                full_data = json.load(f)
+        except Exception as e:
+            print("Error reading highscore file:", e)
+            full_data = {}
+
+    # Get patient entry or default
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    return p_data.get("highscore", 0)
+
+def reset_session_highscore_for_patient():
+    """
+    Resets the session highscore for the current patient to 0 at game launch.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+            
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    p_data["session_highscore"] = 0
+    full_data[PATIENT_ID] = p_data
+    
     try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         tmp_path = file_path + ".tmp"
         with open(tmp_path, "w") as f:
-            json.dump(data, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                pass
+            json.dump(full_data, f, indent=2)
+        os.replace(tmp_path, file_path)
+    except Exception as e:
+        print("Error resetting session score:", e)
+
+def save_score_data(current_score):
+    """
+    Updates the JSON file for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME,
+        "highscore": 0,
+        "session_highscore": 0
+    })
+
+    # Update all-time highscore
+    if current_score > p_data["highscore"]:
+        p_data["highscore"] = int(current_score)
+    
+    # Update session highscore (track max of this session)
+    if current_score > p_data["session_highscore"]:
+        p_data["session_highscore"] = int(current_score)
+    
+    p_data["name"] = PATIENT_NAME
+    full_data[PATIENT_ID] = p_data
+
+    try:
+        tmp_path = file_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(full_data, f, indent=2)
         os.replace(tmp_path, file_path)
     except Exception as e:
         print("Error saving highscore:", e)
 
-def reset_session_highscore():
-    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-    data = {}
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    data["session_highscore"] = 0
-    try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        tmp_path = file_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(data, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                pass
-        os.replace(tmp_path, file_path)
-    except Exception as e:
-        print("Error resetting session highscore:", e)
+    return p_data["highscore"]
 
-reset_session_highscore()
-highscore = load_highscore()
-current_session_highscore = load_session_highscore()
+# Initialize scores
+reset_session_highscore_for_patient()
+highscore = load_patient_data()
+current_session_highscore = 0  # Tracked in memory
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
@@ -133,7 +163,6 @@ def load_calibration():
 
 # --- IMAGE LOADER ---
 def load_image(filename, size=None):
-    # FIXED: Construct path relative to this script
     path = os.path.join(os.path.dirname(__file__), filename)
     try:
         img = Image.open(path).convert("RGBA")
@@ -191,7 +220,6 @@ class RocketGame:
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
 
-        # FIXED: Just filenames
         self.bg_img = load_image("space.png", (WIDTH, HEIGHT))
         self.rocket_img = load_image("rocket.png", ROCKET_SIZE)
         self.star_img = load_image("star.png", (50, 50))
@@ -213,6 +241,10 @@ class RocketGame:
         self.lives_text = self.canvas.create_text(
             WIDTH - 90, 10, text=f"Lives: {self.lives}", font=("Arial", 16), fill="white", anchor=NW
         )
+        
+        # Display Patient Name
+        self.canvas.create_text(WIDTH/2, 10, text=f"Player: {PATIENT_NAME}", 
+                              font=("Arial", 12, "bold"), fill="yellow", anchor="n")
 
         root.bind("<space>", lambda e: self.attempt_jump())
         root.bind("<Left>", self.keyboard_move)
@@ -341,31 +373,34 @@ class RocketGame:
             self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
     def update_from_arduino(self):
-        global angle, val_recta, val_extension, ButtonPress, PotNumber
-
+        global val_recta, val_extension, ButtonPress, last_button_state
         if self.arduino:
+            latest = None
             try:
-                latest_line = None
-                while True:
-                    line = self.arduino.readline().decode('utf-8', errors='ignore').strip()
-                    if not line: break
-                    latest_line = line
-
-                if latest_line:
-                    print("Received:", latest_line)
-                    parts = latest_line.split(" ")
-                    if len(parts) >= 4:
-                        ButtonNumber = int(float(parts[1]))
-                        PotNumber = float(parts[3])
-                        if ButtonNumber == 2001 and self.last_button_state != 2001:
-                            ButtonPress = 1
-                        
-                        elif ButtonNumber == 2000:
-                            ButtonPress = 0
-
-                        self.last_button_state = ButtonNumber
-                        angle = PotNumber
-                    
+                while self.arduino.in_waiting > 0:
+                    raw = self.arduino.readline()
+                    if not raw: continue
+                    s = raw.decode('utf-8', errors='ignore').strip()
+                    if not s: continue
+                    split = s.split(" ")
+                    try:
+                        if len(split) >= 4:
+                            ButtonNumber = int(float(split[1]))
+                            val = float(split[3])
+                            
+                            # Button logic
+                            if ButtonNumber == 2001 and last_button_state != 2001:
+                                ButtonPress = 1
+                            elif ButtonNumber == 2000:
+                                ButtonPress = 0
+                            last_button_state = ButtonNumber
+                        else:
+                            val = float(s)
+                        latest = val
+                    except ValueError:
+                        continue
+                if latest is not None:
+                    angle = latest
                     cal_range = val_extension - val_recta
                     if abs(cal_range) < 1: 
                         extension_pct = 0.0
@@ -437,12 +472,12 @@ class RocketGame:
         self.reset_level() 
 
     def exit_and_save(self):
-        save_highscore(self.current_score)
+        save_score_data(self.current_score)
         self.root.destroy()
     
     def show_game_over_menu(self):
         global highscore
-        save_highscore(self.current_score) 
+        new_hs = save_score_data(self.current_score)
         win = Toplevel(self.root)
         win.title("Game Over")
         win.resizable(False, False)
@@ -450,54 +485,42 @@ class RocketGame:
         c.pack()
         c.create_text(200, 60, text="GAME OVER!", font=("Comic Sans MS", 24, "bold"), fill="red")
         c.create_text(200, 110, text=f"Your Final Score: {self.current_score}", font=("Arial", 16), fill="black")
-        c.create_text(200, 150, text=f"All-Time Highscore: {highscore}", font=("Arial", 16), fill="blue")
+        c.create_text(200, 150, text=f"All-Time Highscore: {new_hs}", font=("Arial", 16), fill="blue")
         Button(win, text="PLAY AGAIN", bg="green", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.reset_game_full())).place(x=70, y=230, width=120, height=40)
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.root.destroy())).place(x=210, y=230, width=120, height=40)
+        
         def poll_end_menu():
-
             if ButtonPress == 1:
-                if PotNumber > 0.5 * val_extension:
-                    self.exit_and_save() 
-                else:
-                    win.destroy()
-                    self.reset_game_full()
-                return
-            
-            win.after(50, poll_end_menu)
-
+                self.exit_and_save()
+            else:
+                win.after(50, poll_end_menu)
+        
         poll_end_menu()
 
     def show_end_menu(self):
         global highscore
-        if self.current_score > highscore:
-            highscore = self.current_score
+        new_hs = save_score_data(self.current_score)
         win = Toplevel(self.root)
         win.title("Level Complete!")
         win.resizable(False, False)
         c = Canvas(win, width=400, height=300) 
         c.pack()
-        c.create_text(200, 60, text=" Mision Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
+        c.create_text(200, 60, text=" Mission Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
         c.create_text(200, 110, text=f"Your Current Score: {self.current_score}", font=("Arial", 16), fill="black")
-        c.create_text(200, 150, text=f"All-Time Highscore: {highscore}", font=("Arial", 16), fill="blue")
-        Button(win, text="CONTINUE", bg="green", fg="white", font=("Arial", 14, "bold"),
+        c.create_text(200, 150, text=f"All-Time Highscore: {new_hs}", font=("Arial", 16), fill="blue")
+        Button(win, text="RESTART", bg="green", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.reset_level())).place(x=70, y=230, width=120, height=40)
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.exit_and_save())).place(x=210, y=230, width=120, height=40)
         
         def poll_end_menu():
-
             if ButtonPress == 1:
-                if PotNumber > 0.5 * val_extension:
-                    self.exit_and_save()
-                else:
-                    win.destroy()
-                    self.reset_level()
-                return
-            
-            win.after(50, poll_end_menu)
-
+                self.exit_and_save()
+            else:
+                win.after(50, poll_end_menu)
+        
         poll_end_menu()
 
 def start_menu(root):
@@ -506,46 +529,46 @@ def start_menu(root):
     canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#2c3e50", outline="")
     canvas.create_text(WIDTH//2, 200, text=" Rocket Extension Game 🚀 ",
                         font=("Comic Sans MS", 30, "bold"), fill="white")
-    canvas.create_text(WIDTH // 2, 300,
+    
+    # Display Patient Name
+    canvas.create_text(WIDTH//2, 260, text=f"Welcome, {PATIENT_NAME}!", 
+                       font=("Arial", 20, "bold"), fill="yellow")
+
+    canvas.create_text(WIDTH // 2, 350,
                         text=("Extend your wrist to jump.\n"
                               "Land on all platforms to reach the star!\n"
                              "Each successful landing gives you 1 point.\n"
                              "If you fail, you lose a life.\n"
                              "You have 3 lives. Good luck!"),
                         font=("Arial", 16), fill="white")
-    if len(sys.argv) >= 3:
+    
+    if len(sys.argv) >= 2:
         Button(canvas, text="← Back to Launcher", bg="#e74c3c", fg="white",
                font=("Arial", 12, "bold"),
                command=lambda: root.destroy()).place(x=10, y=10)
+    
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=lambda: (canvas.destroy(), RocketGame(root))).place(x=WIDTH // 2 - 60, y=500)
-    
     
     def check_button_press():
         global ButtonPress, last_button_state
         if arduino:
             try:
                 latest_line = None
-                while True:
+                while arduino.in_waiting > 0:
                     line = arduino.readline().decode('utf-8', errors='ignore').strip()
-                    if not line:
-                        break
+                    if not line: break
                     latest_line = line
 
                 if latest_line:
                     print("Received:", latest_line)
-
                     parts = latest_line.split(" ")
                     if len(parts) >= 4:
                         ButtonNumber = int(float(parts[1]))
-
-                        # Rising edge detection
                         if ButtonNumber == 2001 and last_button_state != 2001:
                             ButtonPress = 1
-                        
-                        elif ButtonNumber == 2000 and last_button_state != 2000:
+                        elif ButtonNumber == 2000:
                             ButtonPress = 0
-                        
                         last_button_state = ButtonNumber
             except Exception as e:
                 print("Woopsy Daysies")
@@ -555,6 +578,7 @@ def start_menu(root):
             RocketGame(root)
         else:
             canvas.after(50, check_button_press)
+    
     check_button_press()
 
 
