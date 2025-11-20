@@ -48,29 +48,100 @@ def load_highscore():
         print("Error loading highscore:", e)
         return 0
 
-def save_highscore(score):
-    global highscore
-    if score > highscore:
-        try:
-            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            tmp_path = file_path + ".tmp"
-            
-            with open(tmp_path, "w") as f:
-                json.dump({"highscore": int(score)}, f)
-                f.flush()
-                try:
-                    os.fsync(f.fileno())
-                except Exception:
-                    pass
-            os.replace(tmp_path, file_path)
-            highscore = score 
-            print(f"New highscore ({score}) saved!")
-        except Exception as e:
-            print(f"Error saving highscore: {e}")
+def load_session_highscore():
+    """Load session highscore from a JSON file located next to this script; create if missing."""
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                json.dump({"session_highscore": 0}, f)
+            return 0
 
-# Load the highscore once at the start
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            return int(data.get("session_highscore", 0))
+    except Exception as e:
+        print("Error loading session highscore:", e)
+        return 0
+
+def save_highscore(score):
+    global highscore, current_session_highscore
+
+    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+
+    # Load existing data
+    data = {}
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    # Update global highscore
+    if score >= highscore:
+        data["highscore"] = int(score)
+
+    # Update session highscore
+    if score >= current_session_highscore:
+        data["session_highscore"] = int(score)
+
+    # Save updated dictionary atomically
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = file_path + ".tmp"
+
+        with open(tmp_path, "w") as f:
+            json.dump(data, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+
+        os.replace(tmp_path, file_path)
+
+    except Exception as e:
+        print("Error saving highscore:", e)
+
+
+
+def reset_session_highscore():
+    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+
+    # Load existing data
+    data = {}
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+
+    # Reset session highscore
+    data["session_highscore"] = 0
+
+    # Save updated dictionary atomically
+    try:
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        tmp_path = file_path + ".tmp"
+
+        with open(tmp_path, "w") as f:
+            json.dump(data, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except Exception:
+                pass
+
+        os.replace(tmp_path, file_path)
+
+    except Exception as e:
+        print("Error resetting session highscore:", e)
+
+reset_session_highscore()
 highscore = load_highscore()
+current_session_highscore = load_session_highscore()
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
