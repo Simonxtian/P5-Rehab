@@ -25,7 +25,7 @@ PATIENT_DB_FILE = "patients_db.json"
 
 # Telemetry columns emitted by firmware:
 # theta_pot, theta_enc, w_user, w_meas, u_pwm, force_filt, tau_ext, w_adm
-COLS = ["theta_pot","theta_enc","w_user","w_meas","u_pwm","force_filt","tau_ext","w_adm"]
+COLS = ["theta_pot","theta_enc","w_user","w_measured","u_pwm","force_filt","tau_ext","w_adm"]
 
 
 class SerialWorker(threading.Thread):
@@ -95,7 +95,11 @@ class PatientDatabase:
             'weight': weight,
             'difficulty': difficulty,
             'created': datetime.now().isoformat(),
-            'sessions': []
+            'sessions': [],
+            'highscore_flex': 0,
+            'highscore_all': 0,
+            'highscore_extend': 0
+            
         }
         self._save_db()
         return patient_id
@@ -312,7 +316,7 @@ class RehabGUI:
 
         self.lbl_tau = ttk.Label(live, text="tau_ext: 0.000 N·m", font=("Arial", 10))
         self.lbl_tau.grid(row=0, column=1, padx=10, pady=5)
-        self.lbl_w = ttk.Label(live, text="w_meas: 0.000 rad/s", font=("Arial", 10))
+        self.lbl_w = ttk.Label(live, text="w_measured: 0.000 rad/s", font=("Arial", 10))
         self.lbl_w.grid(row=0, column=2, padx=10, pady=5)
         self.lbl_u = ttk.Label(live, text="u_pwm: 0", font=("Arial", 10))
         self.lbl_u.grid(row=0, column=3, padx=10, pady=5)
@@ -435,7 +439,7 @@ class RehabGUI:
             return
         
         # Disable admittance and stop motion
-        self._send("adm off")
+        self._send("Patient assistance - off")
         time.sleep(0.1)
         self._send("w 0")
         self._log("# Session stopped - Admittance disabled")
@@ -520,7 +524,7 @@ class RehabGUI:
             
             # Ensure admittance is OFF when starting
             time.sleep(0.5)  # Give device time to initialize
-            self._send("adm off")
+            self._send("Patient assistance - off")
             self._send("w 0")
             self._log("# Connection established - Admittance disabled")
         else:
@@ -563,7 +567,7 @@ class RehabGUI:
                 # ----------------------------------------------------------------
 
                 self.lbl_tau.config(text=f"tau_ext: {rec['tau_ext']:.3f} N·m")
-                self.lbl_w.config(text=f"w_meas: {rec['w_meas']:.3f} rad/s")
+                self.lbl_w.config(text=f"w_measured: {rec['w_measured']:.3f} rad/s")
                 self.lbl_u.config(text=f"u_pwm: {rec['u_pwm']:.0f}")
 
                 if self.csv_writer:
@@ -613,7 +617,7 @@ class RehabGUI:
             if not messagebox.askyesno("Active Session", 
                 "A session is currently active. Stop it and run new MVC test?"):
                 return
-            self._send("adm off")
+            self._send("Patient assistance - off")
             time.sleep(0.2)
         
         # Sequence: adm off; vd 0; tare; eq hold; collect tau_ext max 5 s while asking user to extend
@@ -638,7 +642,7 @@ class RehabGUI:
 
         # Proper sequence: disable admittance, stop motion, tare force sensor, set equilibrium
         self._log("# Starting MVC test preparation...")
-        self._send("adm off")
+        self._send("Patient assistance - off")
         time.sleep(0.1)
         self._send("w 0")
         time.sleep(0.1)
