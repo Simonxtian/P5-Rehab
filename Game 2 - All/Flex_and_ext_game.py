@@ -37,6 +37,16 @@ Previous = None
 angle = None
 current_session_highscore = 0
 
+# --- Patient Data Defaults ---
+PATIENT_ID = "guest"
+PATIENT_NAME = "Guest"
+
+# Check command line args
+if len(sys.argv) >= 2:
+    PATIENT_ID = sys.argv[1]
+if len(sys.argv) >= 3:
+    PATIENT_NAME = sys.argv[2]
+
 # --- Tkinter setup ---
 root = Tk()
 root.title("Catch the Bird")
@@ -48,90 +58,107 @@ canvas.pack()
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_all.json"
 
-def load_highscore():
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                json.dump({"highscore": 0}, f)
-            return 0
-        with open(file_path, "r+") as f:
-            data = json.load(f)
-            return int(data.get("highscore", 0))
-    except Exception as e:
-        print("Error loading highscore:", e)
-        return 0
+def get_highscore_file_path():
+    return os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
-def load_session_highscore():
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                json.dump({"session_highscore": 0}, f)
-            return 0
-        with open(file_path, "r+") as f:
-            data = json.load(f)
-            return int(data.get("session_highscore", 0))
-    except Exception as e:
-        print("Error loading session highscore:", e)
-        return 0
-
-def save_highscore(score):
-    global highscore, current_session_highscore
-    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-    data = {}
+def load_patient_data():
+    """
+    Loads the entire JSON, returns the specific data for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
     if os.path.exists(file_path):
         try:
             with open(file_path, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    if score >= highscore:
-        data["highscore"] = int(score)
-    if score >= current_session_highscore:
-        data["session_highscore"] = int(score)
+                full_data = json.load(f)
+        except Exception as e:
+            print("Error reading highscore file:", e)
+            full_data = {}
 
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    return p_data.get("highscore", 0)
+
+def reset_session_highscore_for_patient():
+    """
+    Resets the session highscore for the current patient to 0 at game launch.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+            
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    p_data["session_highscore"] = 0
+    full_data[PATIENT_ID] = p_data
+    
     try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
         tmp_path = file_path + ".tmp"
         with open(tmp_path, "w") as f:
-            json.dump(data, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                pass
+            json.dump(full_data, f, indent=2)
+        os.replace(tmp_path, file_path)
+    except Exception as e:
+        print("Error resetting session score:", e)
+
+def save_score_data(current_score):
+    """
+    Updates the JSON file for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME,
+        "highscore": 0,
+        "session_highscore": 0
+    })
+
+    # Update all-time highscore
+    if current_score > p_data["highscore"]:
+        p_data["highscore"] = int(current_score)
+    
+    # Update session highscore (track max of this session)
+    if current_score > p_data["session_highscore"]:
+        p_data["session_highscore"] = int(current_score)
+    
+    p_data["name"] = PATIENT_NAME
+    full_data[PATIENT_ID] = p_data
+
+    try:
+        tmp_path = file_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(full_data, f, indent=2)
         os.replace(tmp_path, file_path)
     except Exception as e:
         print("Error saving highscore:", e)
 
-def reset_session_highscore():
-    file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-    data = {}
-    if os.path.exists(file_path):
-        try:
-            with open(file_path, "r") as f:
-                data = json.load(f)
-        except Exception:
-            data = {}
-    data["session_highscore"] = 0
-    try:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        tmp_path = file_path + ".tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(data, f)
-            f.flush()
-            try:
-                os.fsync(f.fileno())
-            except Exception:
-                pass
-        os.replace(tmp_path, file_path)
-    except Exception as e:
-        print("Error resetting session highscore:", e)
+    return p_data["highscore"]
 
-reset_session_highscore()
-highscore = load_highscore()
-current_session_highscore = load_session_highscore()
+# Initialize scores
+reset_session_highscore_for_patient()
+highscore = load_patient_data()
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
@@ -154,9 +181,8 @@ def load_calibration():
     except Exception as e:
         print(f"Error loading calibration: {e}")
 
-# --- Image loading (with safe fallbacks) ---
+# --- Image loading ---
 def load_image(filename, size, fallback="rect"):
-    # FIXED: Construct path relative to this script
     path = os.path.join(os.path.dirname(__file__), filename)
     try:
         img = Image.open(path).resize(size)
@@ -166,17 +192,7 @@ def load_image(filename, size, fallback="rect"):
         from PIL import ImageDraw
         img = Image.new("RGBA", size, (200, 200, 200, 255))
         draw = ImageDraw.Draw(img)
-        if fallback == "basket":
-            draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(50, 50, 50), width=3)
-            draw.text((10, size[1]//2 - 10), "Basket", fill=(0, 0, 0))
-        elif fallback == "blue":
-            draw.ellipse((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 180), width=3)
-            draw.text((10, size[1]//2 - 10), "Blue", fill=(0, 0, 180))
-        elif fallback == "red":
-            draw.ellipse((0, 0, size[0]-1, size[1]-1), outline=(180, 0, 0), width=3)
-            draw.text((15, size[1]//2 - 10), "Red", fill=(180, 0, 0))
-        else:
-            draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 0), width=2)
+        draw.rectangle((0, 0, size[0]-1, size[1]-1), outline=(0, 0, 0))
         return ImageTk.PhotoImage(img)
 
 # FIXED: Just filenames
@@ -300,7 +316,7 @@ def change_lives(amount):
         game_active = False
         bar_obj.delete_basket()
         score_board("No lives left! Game Over!")
-        save_highscore(total_score)
+        save_score_data(total_score)
         total_score = 0
         lives = 3 
         speed_value = base_speed
@@ -339,6 +355,9 @@ def on_key_press(event):
         bar_obj.set_position(dist)
 
 def score_board(message="Game Over!"):
+    # Use new saving logic
+    new_hs = save_score_data(total_score)
+    
     top = Toplevel(root)
     top.title("Game Over")
     top.resizable(False, False)
@@ -346,7 +365,7 @@ def score_board(message="Game Over!"):
     c2.pack()
     c2.create_text(
         200, 120,
-        text=f"{message}\n\nYour score: {total_score}\n\nHighscore: {highscore}\n\n",
+        text=f"{message}\n\nYour score: {total_score}\n\nHighscore: {new_hs}\n\n",
         font=("Comic Sans MS", 17, "bold"),
         fill="black",
         justify="center"
@@ -357,12 +376,14 @@ def score_board(message="Game Over!"):
     def _exit():
         top.destroy()
         root.destroy()
+        
     btn_play = Button(c2, text="PLAY AGAIN", bg="green", fg="white",
                       font=("Arial", 16, "bold"), command=_play_again)
     btn_exit = Button(c2, text="EXIT", bg="red", fg="white",
                       font=("Arial", 16, "bold"), command=_exit)
     c2.create_window(200, 220, window=btn_play)
     c2.create_window(200, 280, window=btn_exit)
+    
     def check_button_press_after():
         global ButtonPress, normalized
         update_from_arduino()
@@ -382,9 +403,14 @@ def start_menu():
     global ButtonPress
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
-    canvas.create_text(WIDTH // 2, 100, text=" Catch the Bird Game ",
+    canvas.create_text(WIDTH // 2, 80, text=" Catch the Bird Game ",
                         font=("Comic Sans MS", 40, "bold"), fill="black")
-    canvas.create_text(WIDTH // 2, 220,
+    
+    # Display Patient Name
+    canvas.create_text(WIDTH // 2, 150, text=f"Welcome, {PATIENT_NAME}!",
+                        font=("Arial", 24, "bold"), fill="darkblue")
+                        
+    canvas.create_text(WIDTH // 2, 260,
                         text="\n Blue bird = +1 point\nHit the bomb or miss a bird = -1 life\nYou have 3 lives\nIf you reach 30 points you level up!\nCatch blue birds, avoid bombs!",
                         font=("Comic Sans MS", 18), fill="black", justify="center")
     canvas.create_text(WIDTH // 2, 400, text="Select bird speed (1 - 6):",
@@ -400,7 +426,7 @@ def start_menu():
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
     
-    if len(sys.argv) >= 3:
+    if len(sys.argv) >= 2:
         back_button = Button(canvas, text="← Back to Launcher", font=("Comic Sans MS", 14),
                              bg="#e74c3c", fg="white",
                              command=lambda: root.destroy())
@@ -489,7 +515,10 @@ def main():
     dist = 350
     canvas.delete("all")
     canvas.create_image(0, 0, image=bg_photo, anchor="nw")
-    highscore = load_highscore()
+    
+    # Load patient specific highscore
+    highscore = load_patient_data()
+    
     Total_lives_text = canvas.create_text(100, 30, text=f"Lives: {lives}",
                                         font=("Comic Sans MS", 20, "bold"), fill="black")
     Total_score_text = canvas.create_text(480, 30, text=f"Total Score: {total_score}",
@@ -498,6 +527,10 @@ def main():
                                         font=("Comic Sans MS", 20, "bold"), fill="black")
     Highscore_text = canvas.create_text(260, 30, text=f"Highscore: {highscore}",
                                         font=("Comic Sans MS", 20, "bold"), fill="black")
+    
+    # Player Name in HUD
+    canvas.create_text(WIDTH/2, 70, text=f"Player: {PATIENT_NAME}", font=("Arial", 12), fill="black")
+
     bar_obj = Basket(canvas, 10, dist)
     root.bind("<Up>", on_key_press)
     root.bind("<Down>", on_key_press)

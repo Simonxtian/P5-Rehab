@@ -3,5 +3,10 @@
     "name": "Guest",
     "highscore": 1,
     "session_highscore": 1
+  },
+  "sonia": {
+    "name": "sonia",
+    "highscore": 3,
+    "session_highscore": 3
   }
 }

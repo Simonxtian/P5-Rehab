@@ -279,6 +279,17 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 5
+      },
+      {
+        "timestamp": "2025-11-20T12:42:27.383456",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 28.65,
+        "extension_rom": 29.68,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 4,
+        "session_highscore_ext": 3
       }
     ]
   }
