@@ -65,6 +65,22 @@ def load_highscore():
         print("Error loading highscore:", e)
         return 0
 
+def load_session_highscore():
+    """Load session highscore from a JSON file located next to this script; create if missing."""
+    try:
+        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
+        if not os.path.exists(file_path):
+            with open(file_path, "w") as f:
+                json.dump({"session_highscore": 0}, f)
+            return 0
+
+        with open(file_path, "r+") as f:
+            data = json.load(f)
+            return int(data.get("session_highscore", 0))
+    except Exception as e:
+        print("Error loading session highscore:", e)
+        return 0
+
 def save_highscore(score):
     global highscore, current_session_highscore
 
@@ -105,6 +121,8 @@ def save_highscore(score):
     except Exception as e:
         print("Error saving highscore:", e)
 
+
+
 def reset_session_highscore():
     file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
@@ -138,8 +156,10 @@ def reset_session_highscore():
     except Exception as e:
         print("Error resetting session highscore:", e)
 
-highscore = load_highscore()
 reset_session_highscore()
+highscore = load_highscore()
+current_session_highscore = load_session_highscore()
+
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
