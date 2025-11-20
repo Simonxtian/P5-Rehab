@@ -10,9 +10,8 @@ STAR_Y = 5
 PLATFORM_COUNT = 9 
 PLATFORM_WIDTH, PLATFORM_HEIGHT = 180, 50
 PLATFORM_MIN_SPEED, PLATFORM_MAX_SPEED = 1.5, 3.5
-ARDUINO_BAUD = 9600
-ROCKET_SIZE = (50, 70) 
-
+ARDUINO_BAUD = 115200
+ROCKET_SIZE = (50, 70)  # (width, height)
 Y_REF_BOTTOM = HEIGHT - 10  
 Y_REF_TOP = STAR_Y          
 TOTAL_VERTICAL_DISTANCE = (Y_REF_BOTTOM - Y_REF_TOP) 
@@ -22,6 +21,8 @@ UPDATE_MS = 25
 val_recta = 0       
 val_extension = 1023 
 arduino = None
+last_button_state = 0
+ButtonPress = 0
 
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_extension.json"
@@ -156,7 +157,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         ports = []
     for p in ports:
@@ -185,6 +186,7 @@ def connect_arduino():
 # --- GAME CLASS ---
 class RocketGame:
     def __init__(self, root):
+        self.last_button_state = 2000
         self.root = root
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
@@ -339,26 +341,31 @@ class RocketGame:
             self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
     def update_from_arduino(self):
-        global val_recta, val_extension
+        global angle, val_recta, val_extension, ButtonPress, PotNumber
+
         if self.arduino:
-            latest = None
             try:
-                while self.arduino.in_waiting > 0:
-                    raw = self.arduino.readline()
-                    if not raw: continue
-                    s = raw.decode('utf-8', errors='ignore').strip()
-                    if not s: continue
-                    split = s.split(" ")
-                    try:
-                        if len(split) >= 4 and split[2] == "Pot:":
-                             val = float(split[3])
-                        else:
-                             val = float(s)
-                        latest = val
-                    except ValueError:
-                        continue
-                if latest is not None:
-                    angle = latest
+                latest_line = None
+                while True:
+                    line = self.arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line: break
+                    latest_line = line
+
+                if latest_line:
+                    print("Received:", latest_line)
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        ButtonNumber = int(float(parts[1]))
+                        PotNumber = float(parts[3])
+                        if ButtonNumber == 2001 and self.last_button_state != 2001:
+                            ButtonPress = 1
+                        
+                        elif ButtonNumber == 2000:
+                            ButtonPress = 0
+
+                        self.last_button_state = ButtonNumber
+                        angle = PotNumber
+                    
                     cal_range = val_extension - val_recta
                     if abs(cal_range) < 1: 
                         extension_pct = 0.0
@@ -448,6 +455,19 @@ class RocketGame:
                command=lambda: (win.destroy(), self.reset_game_full())).place(x=70, y=230, width=120, height=40)
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.root.destroy())).place(x=210, y=230, width=120, height=40)
+        def poll_end_menu():
+
+            if ButtonPress == 1:
+                if PotNumber > 0.5 * val_extension:
+                    self.exit_and_save() 
+                else:
+                    win.destroy()
+                    self.reset_game_full()
+                return
+            
+            win.after(50, poll_end_menu)
+
+        poll_end_menu()
 
     def show_end_menu(self):
         global highscore
@@ -461,10 +481,24 @@ class RocketGame:
         c.create_text(200, 60, text=" Mision Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
         c.create_text(200, 110, text=f"Your Current Score: {self.current_score}", font=("Arial", 16), fill="black")
         c.create_text(200, 150, text=f"All-Time Highscore: {highscore}", font=("Arial", 16), fill="blue")
-        Button(win, text="RESTART", bg="green", fg="white", font=("Arial", 14, "bold"),
+        Button(win, text="CONTINUE", bg="green", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.reset_level())).place(x=70, y=230, width=120, height=40)
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.exit_and_save())).place(x=210, y=230, width=120, height=40)
+        
+        def poll_end_menu():
+
+            if ButtonPress == 1:
+                if PotNumber > 0.5 * val_extension:
+                    self.exit_and_save()
+                else:
+                    win.destroy()
+                    self.reset_level()
+                return
+            
+            win.after(50, poll_end_menu)
+
+        poll_end_menu()
 
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
@@ -485,6 +519,44 @@ def start_menu(root):
                command=lambda: root.destroy()).place(x=10, y=10)
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=lambda: (canvas.destroy(), RocketGame(root))).place(x=WIDTH // 2 - 60, y=500)
+    
+    
+    def check_button_press():
+        global ButtonPress, last_button_state
+        if arduino:
+            try:
+                latest_line = None
+                while True:
+                    line = arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line:
+                        break
+                    latest_line = line
+
+                if latest_line:
+                    print("Received:", latest_line)
+
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        ButtonNumber = int(float(parts[1]))
+
+                        # Rising edge detection
+                        if ButtonNumber == 2001 and last_button_state != 2001:
+                            ButtonPress = 1
+                        
+                        elif ButtonNumber == 2000 and last_button_state != 2000:
+                            ButtonPress = 0
+                        
+                        last_button_state = ButtonNumber
+            except Exception as e:
+                print("Woopsy Daysies")
+
+        if ButtonPress == 1:
+            canvas.destroy()
+            RocketGame(root)
+        else:
+            canvas.after(50, check_button_press)
+    check_button_press()
+
 
 if __name__ == "__main__":
     root = Tk()

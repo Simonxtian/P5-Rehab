@@ -26,6 +26,9 @@ min_angle = 60.0
 max_angle = 120.0
 raw = None
 Previous = None
+ButtonPress = 0
+last_button_state = 2000
+PotNumber = 0
 
 
 # --- Highscore handling ---
@@ -194,7 +197,7 @@ def connect_arduino():
 # --- GAME CLASS ---
 class FishingGame:
     def __init__(self, root):
-        self.last_button_state = 0
+        self.last_button_state = 2000
         self.root = root
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
@@ -351,7 +354,8 @@ class FishingGame:
         self.waiting_for_retraction = True
     
     def update_from_arduino(self):
-        global angle, val_recta, val_flexion
+        global angle, val_recta, val_flexion, ButtonPress, PotNumber
+
         if self.arduino:
             try:
                 latest_line = None
@@ -368,6 +372,11 @@ class FishingGame:
                         PotNumber = float(parts[3])
                         if ButtonNumber == 2001 and self.last_button_state != 2001:
                             self.toggle_sweep()
+                            ButtonPress = 1
+                        
+                        elif ButtonNumber == 2000 and self.last_button_state != 2000:
+                            ButtonPress = 0
+
                         self.last_button_state = ButtonNumber
                         angle = PotNumber
                         cal_range = val_flexion - val_recta
@@ -402,25 +411,28 @@ class FishingGame:
         save_highscore(self.score)
         self.root.destroy()
 
+        # --- END MENU ---
     def show_end_menu(self):
         self.sweeping = False
         self.stopped = True
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
-        
+
         total_time = round(time.time() - self.start_time, 1)
         global highscore  
         display_highscore = max(self.score, highscore)
-        
+
         win = Toplevel(self.root)
         win.title("Level Complete!")
         win.resizable(False, False)
         c = Canvas(win, width=400, height=350)
         c.pack()
-        
-        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {display_highscore}\nTime: {total_time}s"
-        c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black", justify="center")
+
+        msg = (f" You caught all good items!\n\nYour Score: {self.score}"
+            f"\nAll-Time Highscore: {display_highscore}\nTime: {total_time}s")
+        c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"),
+                    fill="black", justify="center")
 
         def _play_again():
             win.destroy()
@@ -437,11 +449,29 @@ class FishingGame:
 
         Button(win, text="NEXT LEVEL", bg="green", fg="white",
             font=("Arial", 14, "bold"), command=_play_again).place(x=70, y=250, width=120, height=40)
-        
+
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
             command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
+
+        def poll_end_menu():
+            # continue reading Arduino
+            self.update_from_arduino()
+
+            if ButtonPress == 1:
+                if PotNumber < 0.5 * max_angle:
+                    self.exit_and_save()      # <-- FIXED
+                else:
+                    _play_again()
+                return
+            
+            win.after(50, poll_end_menu)
+
+        poll_end_menu()
+
         
+# --- START MENU ---
 def start_menu(root):
+    
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
     canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#a9d8ff", outline="")
@@ -454,6 +484,41 @@ def start_menu(root):
                               "Catch fish and gold, avoid trash.\n"
                               "When you catch all the good items, you win!"),
                         font=("Comic Sans MS", 16), fill="black", justify="center")
+    
+    def check_button_press():
+        global ButtonPress, last_button_state
+        if arduino:
+            try:
+                latest_line = None
+                while True:
+                    line = arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line:
+                        break
+                    latest_line = line
+
+                if latest_line:
+                    print("Received:", latest_line)
+
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        ButtonNumber = int(float(parts[1]))
+
+                        # Rising edge detection
+                        if ButtonNumber == 2001 and last_button_state != 2001:
+                            ButtonPress = 1
+                        
+                        elif ButtonNumber == 2000 and last_button_state != 2000:
+                            ButtonPress = 0
+                        
+                        last_button_state = ButtonNumber
+            except Exception as e:
+                print("Woopsy Daysies")
+
+        if ButtonPress == 1:
+            start_game()
+        else:
+            canvas.after(50, check_button_press)
+    check_button_press()
 
     def start_game():
         for widget in root.winfo_children():
@@ -462,7 +527,9 @@ def start_menu(root):
 
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=start_game).place(x=340, y=500)
+    
 
+# --- MAIN ---
 if __name__ == "__main__":
     root = Tk()
     root.title("Fishing Flexion Game")
