@@ -9,6 +9,7 @@
 #include "VelocityPID.h"
 #include "Filters.h"   // for adcToThetaRad used in telemetry
 
+
 class Control {
 public:
   void begin(){
@@ -34,11 +35,14 @@ public:
       if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
         lastLogMs_ = millis();
         int adc = analogRead(PIN_POT);
-        float theta_pot = adcToThetaRad(adc);
+        float theta_pot_rad = adcToThetaRad(adc);
+        //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
+        float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
+        
         float theta_enc = enc_.thetaRad();
         enc_.updateSpeed();
         float w_meas = enc_.wRadPerSec();
-        Serial.print(theta_pot);           Serial.print(',');
+        Serial.print(theta_pot_deg);           Serial.print(',');
         Serial.print(theta_enc, 6);        Serial.print(',');
         Serial.print(0.0f, 6);             Serial.print(',');
         Serial.print(w_meas, 6);           Serial.print(',');
@@ -76,8 +80,10 @@ public:
     if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
       lastLogMs_ = millis();
       int adc = analogRead(PIN_POT);
-      float theta_pot = adcToThetaRad(adc);
-      Serial.print(theta_pot);           Serial.print(',');
+      float theta_pot_rad = adcToThetaRad(adc);
+      //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
+      float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
+      Serial.print(theta_pot_deg);           Serial.print(',');
       Serial.print(theta_enc, 6);        Serial.print(',');
       Serial.print(wUser_, 6);           Serial.print(',');
       Serial.print(w_meas, 6);           Serial.print(',');

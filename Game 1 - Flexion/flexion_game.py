@@ -10,7 +10,7 @@ ROD_Y = 20
 ROD_SWEEP_SPEED = 4
 ROPE_MAX_LEN = HEIGHT - 60
 UPDATE_MS = 25
-ARDUINO_BAUD = 9600
+ARDUINO_BAUD = 115200
 
 OBJECT_TYPES = [
     ("gold", "gold.png", +2),
@@ -19,99 +19,162 @@ OBJECT_TYPES = [
 ]
 NUM_OBJECTS = 2
 
-# --- Variables Globales ---
-# Se conectará al inicio
+# --- Global Variables ---
 arduino = None
-# Se establecerán en la calibración
 min_angle = 60.0
 max_angle = 120.0
+raw = None
+Previous = None
+ButtonPress = 0
+last_button_state = 2000
+PotNumber = 0
+
+# --- Patient Data Defaults ---
+PATIENT_ID = "guest"
+PATIENT_NAME = "Guest"
+
+# Check command line args: python game.py <id> <name>
+if len(sys.argv) >= 2:
+    PATIENT_ID = sys.argv[1]
+if len(sys.argv) >= 3:
+    PATIENT_NAME = sys.argv[2]
 
 # --- Highscore handling ---
-HIGHSCORE_FILE = "highscore_flex.json"
+HIGHSCORE_FILE = "Highscore_flex.json"
 
-def load_highscore():
-    """Load highscore from a JSON file located next to this script; create if missing."""
-    try:
-        file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-        if not os.path.exists(file_path):
-            with open(file_path, "w") as f:
-                json.dump({"highscore": 0}, f)
-            return 0
+def get_highscore_file_path():
+    return os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
-        with open(file_path, "r+") as f:
-            data = json.load(f)
-            return int(data.get("highscore", 0))
-    except Exception as e:
-        print("Error loading highscore:", e)
-        return 0
-
-def save_highscore(score):
-    global highscore
-    if score > highscore:
+def load_patient_data():
+    """
+    Loads the entire JSON, returns the specific data for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
         try:
-            file_path = os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
-            os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            tmp_path = file_path + ".tmp"
-            
-            with open(tmp_path, "w") as f:
-                json.dump({"highscore": int(score)}, f)
-                f.flush()
-                try:
-                    os.fsync(f.fileno())
-                except Exception:
-                    pass
-            os.replace(tmp_path, file_path)
-            highscore = score 
-            print(f"New highscore ({score}) saved!")
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
         except Exception as e:
-            print(f"Error saving highscore: {e}")
+            print("Error reading highscore file:", e)
+            full_data = {}
 
-# Load the highscore once at the start
-highscore = load_highscore()
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    return p_data.get("highscore", 0)
+
+def reset_session_highscore_for_patient():
+    """
+    Resets the session highscore for the current patient to 0 at game launch.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+            
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME, 
+        "highscore": 0, 
+        "session_highscore": 0
+    })
+    
+    p_data["session_highscore"] = 0
+    full_data[PATIENT_ID] = p_data
+    
+    try:
+        tmp_path = file_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(full_data, f, indent=2)
+        os.replace(tmp_path, file_path)
+    except Exception as e:
+        print("Error resetting session score:", e)
+
+def save_score_data(current_score):
+    """
+    Updates the JSON file for PATIENT_ID.
+    """
+    file_path = get_highscore_file_path()
+    full_data = {}
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r") as f:
+                full_data = json.load(f)
+        except:
+            full_data = {}
+
+    p_data = full_data.get(PATIENT_ID, {
+        "name": PATIENT_NAME,
+        "highscore": 0,
+        "session_highscore": 0
+    })
+
+    # Update all-time highscore
+    if current_score > p_data["highscore"]:
+        p_data["highscore"] = int(current_score)
+    
+    # Update session highscore (track max of this session)
+    if current_score > p_data["session_highscore"]:
+        p_data["session_highscore"] = int(current_score)
+    
+    p_data["name"] = PATIENT_NAME
+    full_data[PATIENT_ID] = p_data
+
+    try:
+        tmp_path = file_path + ".tmp"
+        with open(tmp_path, "w") as f:
+            json.dump(full_data, f, indent=2)
+        os.replace(tmp_path, file_path)
+    except Exception as e:
+        print("Error saving highscore:", e)
+
+    return p_data["highscore"]
+
+# Initialize scores
+reset_session_highscore_for_patient()
+highscore = load_patient_data()
 
 # --- CALIBRATION LOADING ---
 def load_calibration():
-    """Carga los valores de calibración desde la carpeta hermana 'Calibration'."""
     global val_recta, val_flexion
-    
-    # Valores por defecto
-    val_recta = 0
-    val_flexion = 1023
-
+    val_recta = 450
+    val_flexion = 120
     try:
-        # 1. Obtener la carpeta donde está este script (Game 1 - Flexion)
         game_dir = os.path.dirname(__file__)
-        
-        # 2. Subir un nivel a la carpeta principal (P5-REHAB)
         main_dir = os.path.dirname(game_dir)
-        
-        # 3. Construir la ruta hacia la carpeta 'Calibration'
-        file_path = os.path.join(main_dir, "Calibration", "calibration_data.json")
-        
-        print(f"Buscando calibración en: {file_path}") # Para ver si la ruta es correcta
-
+        file_path = os.path.join(main_dir, "WristRehab", "calibration_data.json")
+        print(f"Searching for calibration at: {file_path}") 
         with open(file_path, "r") as f:
             data = json.load(f)
-            # Cargamos solo lo que necesitamos
-            val_recta = data.get("posicion_recta", 450)
-            val_flexion = data.get("posicion_flexion", 120)
-            print(f"Calibración Cargada: Recta={val_recta}, Flexión={val_flexion}")
-            
+            val_recta = data.get("neutral", 450)
+            val_flexion = data.get("flexion", 120)
+            print(f"Calibration Loaded: Neutral={val_recta}, Flexion={val_flexion}")
     except FileNotFoundError:
-        print(f"ERROR: No se encontró el archivo en: {file_path}")
-        print("Asegúrate de haber ejecutado Calibration.py primero.")
+        print(f"ERROR: File not found at: {file_path}")
     except Exception as e:
-        print(f"Error cargando calibración: {e}")
+        print(f"Error loading calibration: {e}")
+        
 # --- IMAGE LOADER ---
-def load_image(path, size=None):
+def load_image(filename, size=None):
+    path = os.path.join(os.path.dirname(__file__), filename)
     try:
         img = Image.open(path).convert("RGBA")
         resample_filter = Image.Resampling.LANCZOS if hasattr(Image.Resampling, 'LANCZOS') else Image.ANTIALIAS
         if size:
             img = img.resize(size, resample_filter)
         return ImageTk.PhotoImage(img)
-    except Exception:
-        # Fallback if image is missing
+    except Exception as e:
+        print(f"Error loading {filename}: {e}")
         w, h = size if size else (60, 60)
         img = Image.new("RGBA", (w, h), (200, 200, 200, 255))
         d = ImageDraw.Draw(img)
@@ -126,7 +189,7 @@ def find_arduino_port():
     elif sys.platform.startswith('linux') or sys.platform.startswith('cygwin'):
         ports = glob.glob('/dev/tty[A-Za-z]*')
     elif sys.platform.startswith('darwin'):
-        ports = glob.glob('/dev/tty.*')
+        ports = glob.glob('/dev/cu.usb*')
     else:
         ports = []
     for p in ports:
@@ -143,8 +206,8 @@ def connect_arduino():
         print("No Arduino found (keyboard only).")
         return None
     try:
-        s = serial.Serial(port, ARDUINO_BAUD, timeout=0)
-        time.sleep(2)
+        s = serial.Serial(port, ARDUINO_BAUD, timeout=0) 
+        time.sleep(2) 
         s.reset_input_buffer()
         print("Connected to Arduino:", port)
         return s
@@ -155,17 +218,17 @@ def connect_arduino():
 # --- GAME CLASS ---
 class FishingGame:
     def __init__(self, root):
+        self.last_button_state = 2000
         self.root = root
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
         
-        # Load assets (Paths kept as provided)
-        self.bg_img = load_image(r"Game 1 - Flexion\sea.png", (WIDTH, HEIGHT))
-        self.rod_img = load_image(r"Game 1 - Flexion\fishing_rod.png", (90, 90))
+        self.bg_img = load_image("sea.png", (WIDTH, HEIGHT))
+        self.rod_img = load_image("fishing_rod.png", (90, 90))
         self.obj_imgs = {
-            "gold": load_image(r"Game 1 - Flexion\gold.png", (60,60)),
-            "fish": load_image(r"Game 1 - Flexion\fish.png", (60,60)),
-            "trash": load_image(r"Game 1 - Flexion\trash.png", (60,60)),
+            "gold": load_image("gold.png", (60,60)),
+            "fish": load_image("fish.png", (60,60)),
+            "trash": load_image("trash.png", (60,60)),
         }
 
         self.canvas.create_image(0, 0, image=self.bg_img, anchor=NW)
@@ -173,30 +236,30 @@ class FishingGame:
         self.rod_item = self.canvas.create_image(100, ROD_Y, image=self.rod_img, anchor=NW)
         self.canvas.tag_raise(self.rope_item, self.rod_item)
 
-        # Score display
         self.score_text = self.canvas.create_text(80, 24, text="Score: 0", font=("Arial", 16), fill="black")
+        
+        # Display Patient Name in HUD
+        self.canvas.create_text(WIDTH-10, 10, text=f"Player: {PATIENT_NAME}", 
+                              font=("Arial", 12), fill="black", anchor="ne")
+        
         self.level_text = self.canvas.create_text(700, 24, text=f"Level: 1", font=("Arial",16), fill="black")
 
-        # Buttons
         self.stop_btn = Button(root, text="STOP/RESUME", command=self.toggle_sweep)
         self.stop_btn.pack(side="left", padx=10)
         self.reset_btn = Button(root, text="RESET LEVEL", command=self.reset_round)
         self.reset_btn.pack(side="left", padx=10)
         
-        # Add Back to Launcher button if launched from game launcher
-        if len(sys.argv) >= 3:
+        if len(sys.argv) >= 2:
             self.back_btn = Button(root, text="← Back to Launcher", bg="#e74c3c", fg="white",
                                   command=lambda: root.destroy())
             self.back_btn.pack(side="right", padx=10)
 
-        # Controls
         root.bind("<space>", lambda e: self.toggle_sweep())
         root.bind("<w>", self.adjust_rope)
         root.bind("<s>", self.adjust_rope)
         root.bind("<Up>", self.adjust_rope)
         root.bind("<Down>", self.adjust_rope)
 
-        # Game variables
         self.rod_x = 100
         self.rod_dir = 1
         self.rope_len = 0
@@ -215,17 +278,13 @@ class FishingGame:
         self.level = 1
         self.temp_texts = []
         self.game_over = False
-        
         self.waiting_for_retraction = False
         
         self.spawn_objects()
         self.root.after(UPDATE_MS, self.update)
-
-        # Start Arduino polling if connected
         if self.arduino:
             self.root.after(100, self.update_from_arduino)
 
-    # --- OBJECTS ---
     def spawn_objects(self):
         for obj in self.objects:
             self.canvas.delete(obj["id"])
@@ -242,11 +301,8 @@ class FishingGame:
     def all_good_collected(self):
         return not any(o["type"] in ("gold","fish") for o in self.objects)
 
-    # --- CONTROLS ---
     def toggle_sweep(self):
-        if self.waiting_for_retraction:
-            return
-
+        if self.waiting_for_retraction: return
         if self.sweeping:
             self.sweeping = False
             self.stopped = True
@@ -266,19 +322,15 @@ class FishingGame:
             self.waiting_for_retraction = False
             self.canvas.itemconfig(self.rope_item, state="normal")
 
-
     def adjust_rope(self, event):
-        if self.arduino is not None or not self.stopped:
-            return  
+        if self.arduino is not None or not self.stopped: return  
         step = 15
         if event.keysym in ('w', 'Up'):
             self.rope_len = max(0, self.rope_len - step)
         elif event.keysym in ('s', 'Down'):
             self.rope_len = min(ROPE_MAX_LEN, self.rope_len + step)
         
-        if not self.sweeping:
-            self.check_hit()
-        
+        if not self.sweeping: self.check_hit()
         self.update_rope()
 
     def rod_tip(self):
@@ -293,23 +345,17 @@ class FishingGame:
     def check_hit(self):
         tip_x, tip_y = self.rod_tip()
         end_y = tip_y + self.rope_len
-
-        if self.rope_len < 5:
-            return False
+        if self.rope_len < 5: return False
 
         for obj in list(self.objects):
             ox1, oy1, ox2, oy2 = obj["x"], obj["y"], obj["x"] + obj["w"], obj["y"] + obj["h"]
-            
             if ox1 <= tip_x <= ox2 and end_y >= oy1:
-                
                 self.canvas.delete(obj["id"])
                 self.objects.remove(obj)
                 self.score += obj["pts"]
                 self.canvas.itemconfig(self.score_text, text=f"Score: {self.score}")
-                text_id = self.canvas.create_text(
-                    (ox1 + ox2) // 2, oy1 - 20,
-                    text=f"{obj['pts']:+}", font=("Arial", 14, "bold"), fill="black"
-                )
+                text_id = self.canvas.create_text((ox1 + ox2) // 2, oy1 - 20,
+                    text=f"{obj['pts']:+}", font=("Arial", 14, "bold"), fill="black")
                 self.temp_texts.append(text_id)
                 self.canvas.itemconfig(self.rope_item, state="hidden")
                 
@@ -332,107 +378,85 @@ class FishingGame:
         self.canvas.itemconfig(self.rope_item, state="normal")
         self.waiting_for_retraction = True
     
-    # --- ARDUINO POLLING (UPDATED FOR NEW CALIBRATION) ---
     def update_from_arduino(self):
-        global val_recta, val_flexion
-        
+        global angle, val_recta, val_flexion, ButtonPress, PotNumber
+
         if self.arduino:
-            latest = None
             try:
+                latest_line = None
                 while self.arduino.in_waiting > 0:
-                    raw = self.arduino.readline()
-                    if not raw: continue
-                    s = raw.decode('utf-8', errors='ignore').strip()
-                    if not s: continue
-                    
-                    # Assuming format "Button: X Pot: Y" or just "Y"
-                    # Adjust this parsing to match your Arduino output exactly
-                    split = s.split(" ")
-                    try:
-                        if len(split) >= 4 and split[2] == "Pot:":
-                             val = float(split[3])
-                        else:
-                             val = float(s) # Fallback if it sends just numbers
-                        latest = val
-                    except ValueError:
-                        continue
+                    line = self.arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line: break
+                    latest_line = line
 
-                if latest is not None:
-                    angle = latest
-                    
-                    # --- NEW MAPPING LOGIC ---
-                    # Range calculation
-                    cal_range = val_flexion - val_recta
-                    
-                    if cal_range == 0:
-                        self.pot_normalized = 0
-                    else:
-                        # Clamp the raw value between Recta and Flexion limits
-                        cal_min = min(val_recta, val_flexion)
-                        cal_max = max(val_recta, val_flexion)
-                        clamped_angle = max(cal_min, min(cal_max, angle))
-                        
-                        # Normalize (0.0 = Recta/Top, 1.0 = Flexion/Bottom)
-                        self.pot_normalized = (clamped_angle - val_recta) / cal_range
+                if latest_line:
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        try:
+                            ButtonNumber = int(float(parts[1]))
+                            PotNumber = float(parts[3])
+                            if ButtonNumber == 2001 and self.last_button_state != 2001:
+                                self.toggle_sweep()
+                                ButtonPress = 1
+                            elif ButtonNumber == 2000:
+                                ButtonPress = 0
 
-                    if not self.sweeping:
-                        y_pos = self.pot_normalized * ROPE_MAX_LEN
-                        self.set_rope(int(y_pos))
-
+                            self.last_button_state = ButtonNumber
+                            angle = PotNumber
+                            cal_range = val_flexion - val_recta
+                            if abs(cal_range) > 1:
+                                clamped = max(min(angle, max(val_recta, val_flexion)), min(val_recta, val_flexion))
+                                self.pot_normalized = (clamped - val_recta) / cal_range
+                            else:
+                                self.pot_normalized = 0
+                            if not self.sweeping:
+                                self.set_rope(int(self.pot_normalized * ROPE_MAX_LEN))
+                        except: pass
             except Exception as e:
                 pass
+        self.root.after(25, self.update_from_arduino)
 
-        self.root.after(50, self.update_from_arduino)
-
-    # --- UPDATE LOOP ---
     def update(self):
         self.root.after(UPDATE_MS, self.update)
         if self.game_over: return
-
         if self.waiting_for_retraction:
-        
-            if self.rope_len < 10:  
-                self.waiting_for_retraction = False
-                self.sweeping = True
-                self.stopped = False
-
+            if self.rope_len < 10: self.waiting_for_retraction = False
+            return
         elif self.sweeping:
             self.rod_x += self.rod_dir * self.sweep_speed
             if self.rod_x < 0: self.rod_dir = 1
             if self.rod_x > WIDTH - self.rod_img.width(): self.rod_dir = -1
             self.canvas.coords(self.rod_item, self.rod_x, ROD_Y)
-            
             self.set_rope(0)
-        
         else:
-            if self.check_hit():
-                pass 
+            if self.check_hit(): pass 
         self.update_rope()
 
     def exit_and_save(self):
-        save_highscore(self.score)
+        save_score_data(self.score)
         self.root.destroy()
 
-    # --- END MENU ---
     def show_end_menu(self):
         self.sweeping = False
         self.stopped = True
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
-        
+
         total_time = round(time.time() - self.start_time, 1)
-        global highscore  
-        display_highscore = max(self.score, highscore)
         
+        new_highscore = save_score_data(self.score)
+
         win = Toplevel(self.root)
         win.title("Level Complete!")
         win.resizable(False, False)
         c = Canvas(win, width=400, height=350)
         c.pack()
-        
-        msg = f" You caught all good items!\n\nYour Score: {self.score}\nAll-Time Highscore: {display_highscore}\nTime: {total_time}s"
-        c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"), fill="black", justify="center")
+
+        msg = (f" You caught all good items!\n\nYour Score: {self.score}"
+            f"\nAll-Time Highscore: {new_highscore}\nTime: {total_time}s")
+        c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"),
+                    fill="black", justify="center")
 
         def _play_again():
             win.destroy()
@@ -449,24 +473,67 @@ class FishingGame:
 
         Button(win, text="NEXT LEVEL", bg="green", fg="white",
             font=("Arial", 14, "bold"), command=_play_again).place(x=70, y=250, width=120, height=40)
-        
+
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
             command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
-        
-# --- START MENU ---
+
+        def poll_end_menu():
+            self.update_from_arduino()
+            if ButtonPress == 1:
+                if PotNumber < 0.5 * max_angle:
+                    self.exit_and_save()
+                else:
+                    _play_again()
+                return
+            win.after(50, poll_end_menu)
+
+        poll_end_menu()
+
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
     canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#a9d8ff", outline="")
     canvas.create_text(WIDTH//2, 150, text="🎣 Fishing Flexion Game 🎣",
                         font=("Comic Sans MS", 36, "bold"), fill="navy")
-    canvas.create_text(WIDTH//2, 300,
+    
+    # Display Patient Name
+    canvas.create_text(WIDTH//2, 220, text=f"Welcome, {PATIENT_NAME}!", 
+                       font=("Arial", 20, "bold"), fill="navy")
+    
+    canvas.create_text(WIDTH//2, 320,
                         text=("Move the rod left and right automatically.\n"
                               "Press the button to stop the rod.\n"
                               "Move your wrist downward (flexion) to lower the fishing line.\n"
                               "Catch fish and gold, avoid trash.\n"
                               "When you catch all the good items, you win!"),
                         font=("Comic Sans MS", 16), fill="black", justify="center")
+    
+    def check_button_press():
+        global ButtonPress, last_button_state
+        if arduino:
+            try:
+                latest_line = None
+                while arduino.in_waiting > 0:
+                    line = arduino.readline().decode('utf-8', errors='ignore').strip()
+                    if not line: break
+                    latest_line = line
+                if latest_line:
+                    parts = latest_line.split(" ")
+                    if len(parts) >= 4:
+                        ButtonNumber = int(float(parts[1]))
+                        if ButtonNumber == 2001 and last_button_state != 2001:
+                            ButtonPress = 1
+                        elif ButtonNumber == 2000:
+                            ButtonPress = 0
+                        last_button_state = ButtonNumber
+            except Exception as e:
+                pass
+
+        if ButtonPress == 1:
+            start_game()
+        else:
+            canvas.after(50, check_button_press)
+    check_button_press()
 
     def start_game():
         for widget in root.winfo_children():
@@ -476,13 +543,10 @@ def start_menu(root):
     Button(root, text="PLAY", bg="green", fg="white", font=("Comic Sans MS", 24, "bold"),
            command=start_game).place(x=340, y=500)
 
-# --- MAIN ---
 if __name__ == "__main__":
     root = Tk()
     root.title("Fishing Flexion Game")
-    
     arduino = connect_arduino()
-    load_calibration() # Load the calibration from the JSON file
-    
+    load_calibration()
     start_menu(root)
     root.mainloop()

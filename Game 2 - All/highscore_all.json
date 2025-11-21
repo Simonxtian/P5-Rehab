@@ -1,1 +1,9 @@
-{"highscore": 1244}
+{
+  "highscore": 7,
+  "session_highscore": 0,
+  "sonia": {
+    "name": "sonia",
+    "highscore": 4,
+    "session_highscore": 4
+  }
+}
