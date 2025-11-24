@@ -5,5 +5,10 @@
     "name": "sonia",
     "highscore": 4,
     "session_highscore": 4
+  },
+  "guest": {
+    "name": "Guest",
+    "highscore": 0,
+    "session_highscore": 0
   }
 }

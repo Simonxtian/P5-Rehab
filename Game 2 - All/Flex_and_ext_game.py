@@ -228,7 +228,7 @@ def connect_arduino():
         print("No Arduino found. Basket will use keyboard control.")
         return None
     try:
-        arduino = serial.Serial(port, 115200, timeout=0)
+        arduino = serial.Serial(port, 115200, timeout=0.1)
         time.sleep(2)
         arduino.reset_input_buffer()
         print(f"Connected to Arduino on {port}")
@@ -299,6 +299,8 @@ class Basket:
 
 # --- Functions ---
 def bird_set():
+    if not game_active:
+        return
     y_value = randint(50, HEIGHT - 100)
     color = "blue" if randint(1, 10) <= 7 else "red"
     bird = Bird(canvas, WIDTH - 80, y_value, color)
@@ -435,7 +437,6 @@ def start_menu():
 
     def check_button_press_start():
         global ButtonPress
-        update_from_arduino()
         
         if normalized < 1/6: speed_slider.set(1)
         elif normalized < 2/6: speed_slider.set(2)
@@ -449,6 +450,7 @@ def start_menu():
         else:
             canvas.after(50, check_button_press_start)
     check_button_press_start()
+    canvas.after(50, update_from_arduino)
 
 def start_game(selected_speed):
     global speed_value, base_speed, level, ButtonPress
@@ -466,27 +468,28 @@ def update_from_arduino():
     if arduino:
         latest = None
         try:
-            while arduino.in_waiting > 0:
-                raw = arduino.readline()
-                if not raw: break
-                s = raw.decode('utf-8', errors='ignore').strip()
-                if not s: continue
-                split = s.split(" ")
-                try:
-                    if len(split) >= 4 and split[2] == "Pot:":
-                        PotNumber = float(split[3])
-                        ButtonNumber = float(split[1])
-                    else:
-                        PotNumber = float(s)
-                        ButtonNumber = 0 
-                    
-                    latest = PotNumber
-                    if ButtonNumber == 2001:
-                         ButtonPress = 1
-                    elif ButtonNumber == 2000:
-                         ButtonPress = 0
-                except ValueError:
-                    continue
+            #print("Reading from Arduino...")
+            raw = arduino.readline()
+                #print(f"Raw data: {raw}")
+            s = raw.decode('utf-8', errors='ignore').strip()
+            split = s.split(",")
+                #print(split)
+            try:
+                if len(split) >= 4:
+                    PotNumber = float(split[2])
+                    ButtonNumber = int(split[1])
+                else:
+                    PotNumber = float(s)
+                    ButtonNumber = 0 
+                print(f"Potentiometer: {PotNumber}, Button: {ButtonNumber}")
+                latest = PotNumber
+
+                if ButtonNumber == 0:
+                    ButtonPress = 1
+                elif ButtonNumber == 1:
+                    ButtonPress = 0
+            except ValueError:
+                print("Woopsie")
 
             if latest is not None:
                 angle = latest
@@ -542,7 +545,7 @@ def main():
         except AttributeError:
             arduino.flushInput()
     bird_set()
-    root.after(100, update_from_arduino)
+    root.after(50, update_from_arduino)
 
 connect_arduino()
 load_calibration()
