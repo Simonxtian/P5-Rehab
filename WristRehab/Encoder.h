@@ -43,7 +43,7 @@ public:
         if (++wMedIdx_>=W_MED_WIN){ wMedIdx_=0; wMedFilled_=true; }
         uint8_t n = wMedFilled_ ? W_MED_WIN : (wMedIdx_==0 ? 1 : wMedIdx_);
         float wMed = median_(wMedBuf_, n);
-        wEMA_ += 0.8f * (wMed - wEMA_);
+        wEMA_ += Omega_EMA_ALPHA * (wMed - wEMA_);
         wMeas_ = wEMA_;
       }
     }

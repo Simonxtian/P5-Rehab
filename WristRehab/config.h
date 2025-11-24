@@ -46,6 +46,8 @@ static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling windo
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
 static constexpr float FORCE_EMA_ALPHA = 0.8f;        // LPF for force
 
+static constexpr float Omega_EMA_ALPHA = 0.9f;
+
 // ----------------- Loop rates -----------------
 static constexpr float LOOP_HZ      = 1000.0f;        // inner velocity loop
 static constexpr unsigned long POS_DT_US = 10000;     // ~200 Hz admittance
