@@ -23,6 +23,7 @@ val_extension = 1023
 arduino = None
 last_button_state = 0
 ButtonPress = 0
+extension_pct = 0.0
 
 # --- Patient Data Defaults ---
 PATIENT_ID = "guest"
@@ -203,7 +204,7 @@ def connect_arduino():
         print("No Arduino found (keyboard only).")
         return None
     try:
-        s = serial.Serial(port, ARDUINO_BAUD, timeout=0)
+        s = serial.Serial(port, ARDUINO_BAUD, timeout=0.1)
         time.sleep(2)
         s.reset_input_buffer()
         print("Connected to Arduino:", port)
@@ -215,8 +216,15 @@ def connect_arduino():
 # --- GAME CLASS ---
 class RocketGame:
     def __init__(self, root):
-        self.last_button_state = 2000
+        self.last_button_state = 1
         self.root = root
+        # --- FIX: Cancel all previous timers to prevent stacking and lag ---
+        for after_id in self.root.tk.call("after", "info"):
+            try:
+                self.root.after_cancel(after_id)
+            except:
+                pass
+
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
 
@@ -373,47 +381,59 @@ class RocketGame:
             self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
 
     def update_from_arduino(self):
-        global val_recta, val_extension, ButtonPress, last_button_state
-        if self.arduino:
+        global val_recta, val_extension, ButtonPress, last_button_state, extension_pct
+        try:
+            if not self.arduino:
+                return
+
             latest = None
-            try:
-                while self.arduino.in_waiting > 0:
-                    raw = self.arduino.readline()
-                    if not raw: continue
-                    s = raw.decode('utf-8', errors='ignore').strip()
-                    if not s: continue
-                    split = s.split(" ")
-                    try:
-                        if len(split) >= 4:
-                            ButtonNumber = int(float(split[1]))
-                            val = float(split[3])
-                            
-                            # Button logic
-                            if ButtonNumber == 2001 and last_button_state != 2001:
-                                ButtonPress = 1
-                            elif ButtonNumber == 2000:
-                                ButtonPress = 0
-                            last_button_state = ButtonNumber
-                        else:
-                            val = float(s)
-                        latest = val
-                    except ValueError:
-                        continue
-                if latest is not None:
-                    angle = latest
-                    cal_range = val_extension - val_recta
-                    if abs(cal_range) < 1: 
-                        extension_pct = 0.0
+
+            # Check if data is available before reading
+            if self.arduino.in_waiting > 0:
+                raw = self.arduino.readline()
+                if not raw:
+                    return
+                s = raw.decode('utf-8', errors='ignore').strip()
+                if not s:
+                    return
+
+                split = s.split(",")
+
+                try:
+                    if len(split) >= 4:
+                        ButtonNumber = int(float(split[1]))
+                        val = float(split[2])
+                        #print("arduino:", ButtonNumber, val)
+                        if ButtonNumber == 0 and self.last_button_state != 0:
+                            ButtonPress = 1
+                        elif ButtonNumber == 1:
+                            ButtonPress = 0
+                        self.last_button_state = ButtonNumber
                     else:
-                        extension_pct = (angle - val_recta) / cal_range
-                    if extension_pct >= 0.5:
-                         if self._jump_ready and not self.is_jumping:
-                             self.attempt_jump()
-                             self._jump_ready = False
-                    elif extension_pct <= 0.2:
-                         self._jump_ready = True
-            except Exception as e:
-                pass
+                        val = float(split[-1])
+                except ValueError:
+                    return
+                latest = val
+
+            if latest is not None:
+                angle = latest
+                cal_range = val_extension - val_recta
+                if abs(cal_range) < 1:
+                    extension_pct = 0.0
+                else:
+                    extension_pct = (angle - val_recta) / cal_range
+
+                # threshold logic
+                if extension_pct >= 0.7:
+                    if self._jump_ready and not self.is_jumping:
+                        self.attempt_jump()
+                        self._jump_ready = False
+                elif extension_pct < 0.7:
+                    self._jump_ready = True
+
+        except Exception as e:
+            pass
+        # schedule next poll
         self.root.after(UPDATE_MS, self.update_from_arduino)
 
     def update(self):
@@ -476,7 +496,7 @@ class RocketGame:
         self.root.destroy()
     
     def show_game_over_menu(self):
-        global highscore
+        global highscore, ButtonPress, last_button_state
         new_hs = save_score_data(self.current_score)
         win = Toplevel(self.root)
         win.title("Game Over")
@@ -492,15 +512,21 @@ class RocketGame:
                command=lambda: (win.destroy(), self.root.destroy())).place(x=210, y=230, width=120, height=40)
         
         def poll_end_menu():
+            global ButtonPress, extension_pct
+            #print("Polling end menu:", ButtonPress, extension_pct)
             if ButtonPress == 1:
-                self.exit_and_save()
+                if extension_pct >= 0.5:
+                    self.exit_and_save()
+                elif extension_pct < 0.5:
+                    win.destroy()
+                    self.reset_game_full()
             else:
                 win.after(50, poll_end_menu)
         
         poll_end_menu()
 
     def show_end_menu(self):
-        global highscore
+        global ButtonPress, extension_pct, highscore
         new_hs = save_score_data(self.current_score)
         win = Toplevel(self.root)
         win.title("Level Complete!")
@@ -510,14 +536,20 @@ class RocketGame:
         c.create_text(200, 60, text=" Mission Done! ", font=("Comic Sans MS", 18, "bold"), fill="black")
         c.create_text(200, 110, text=f"Your Current Score: {self.current_score}", font=("Arial", 16), fill="black")
         c.create_text(200, 150, text=f"All-Time Highscore: {new_hs}", font=("Arial", 16), fill="blue")
-        Button(win, text="RESTART", bg="green", fg="white", font=("Arial", 14, "bold"),
+        Button(win, text="CONTINUE", bg="green", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.reset_level())).place(x=70, y=230, width=120, height=40)
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=lambda: (win.destroy(), self.exit_and_save())).place(x=210, y=230, width=120, height=40)
         
         def poll_end_menu():
+            global ButtonPress, extension_pct
+            #print("Polling end menu:", ButtonPress, extension_pct)
             if ButtonPress == 1:
-                self.exit_and_save()
+                if extension_pct >= 0.5:
+                    self.exit_and_save()
+                elif extension_pct < 0.5:
+                    win.destroy()
+                    self.reset_level()
             else:
                 win.after(50, poll_end_menu)
         
@@ -552,21 +584,20 @@ def start_menu(root):
     
     def check_button_press():
         global ButtonPress, last_button_state
+        
         if arduino:
             try:
                 latest_line = None
-                while arduino.in_waiting > 0:
-                    line = arduino.readline().decode('utf-8', errors='ignore').strip()
-                    if not line: break
-                    latest_line = line
+                line = arduino.readline().decode('utf-8', errors='ignore').strip()
+                latest_line = line
 
                 if latest_line:
-                    parts = latest_line.split(" ")
+                    parts = latest_line.split(",")
                     if len(parts) >= 4:
                         ButtonNumber = int(float(parts[1]))
-                        if ButtonNumber == 2001 and last_button_state != 2001:
+                        if ButtonNumber == 0 and last_button_state != 0:
                             ButtonPress = 1
-                        elif ButtonNumber == 2000:
+                        elif ButtonNumber == 1:
                             ButtonPress = 0
                         last_button_state = ButtonNumber
             except Exception as e:
