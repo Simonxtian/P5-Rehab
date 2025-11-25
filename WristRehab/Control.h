@@ -9,42 +9,53 @@
 #include "VelocityPID.h"
 #include "Filters.h"   // for adcToThetaRad used in telemetry
 
-
 class Control {
 public:
-  void begin(){
+  void begin() {
     motor_.begin();
     enc_.begin();
     fs_.begin();
     adm_.begin();
-    pid_.begin();  // Initialize PID controller - was missing!
+    pid_.begin();  // Initialize PID controller
     lastLoopUs_ = micros();
-    lastLogMs_  = millis();   
+    lastLogMs_  = millis();
   }
 
-  void update(){
+  void update() {
     unsigned long now = micros();
     const unsigned long dt_us_target = (unsigned long)(1e6f / LOOP_HZ);
     if ((now - lastLoopUs_) < dt_us_target) return;
-    float dt = (now - lastLoopUs_) * 1e-6f; lastLoopUs_ = now;
+    float dt = (now - lastLoopUs_) * 1e-6f;
+    lastLoopUs_ = now;
 
     // --- Manual override for bring-up ---
     if (overrideActive_) {
       motor_.writePWM(overridePWM_);
       if (millis() > overrideEndMs_) { overrideActive_ = false; }
-      if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
+
+      if ((millis() - lastLogMs_) >= LOG_PERIOD_MS) {
         lastLogMs_ = millis();
+
         int adc = analogRead(PIN_POT);
         float theta_pot_rad = adcToThetaRad(adc);
-        //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
         float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG);
-        
+
+        // ======== SIMPLIFIED GAME OUTPUT (ONLY 2 FIELDS) =========
+        Serial.print(theta_pot_deg);   // angle in degrees
+        Serial.print(',');
+        Serial.println(digitalRead(11));  // button state: 0 or 1
+        // ========================================================
+
+        // If you still want full telemetry somewhere else,
+        // you can send it to Serial1 (if available) or re-enable here.
+        /*
         float theta_enc = enc_.thetaRad();
         enc_.updateSpeed();
         float w_meas = enc_.wRadPerSec();
-        Serial.print(theta_pot_deg);          Serial.print(', ');
+
+        Serial.print(theta_pot_deg);          Serial.print(',');
         Serial.print(digitalRead(11));        Serial.print(',');
-        Serial.print(analogRead(A0));        Serial.print(',');
+        Serial.print(analogRead(A0));         Serial.print(',');
         Serial.print(theta_enc, 6);           Serial.print(',');
         Serial.print(0.0f, 6);                Serial.print(',');
         Serial.print(w_meas, 6);              Serial.print(',');
@@ -52,9 +63,12 @@ public:
         Serial.print(fs_.forceFiltered(),4);  Serial.print(',');
         Serial.print(fs_.tauExt(),5);         Serial.print(',');
         Serial.println(0.0f,5);
+        */
       }
       return;
     }
+
+    // --- Normal control loop ---
 
     // encoder & speed
     float theta_enc = enc_.thetaRad();
@@ -78,23 +92,34 @@ public:
     float u_pwm = pid_.step(w_total, w_meas, dt);
     motor_.writePWM(u_pwm);
 
-    // telemetry
-    if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
+    // --- Telemetry for game (minimal stream) ---
+    if ((millis() - lastLogMs_) >= LOG_PERIOD_MS) {
       lastLogMs_ = millis();
+
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
-      //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg);          Serial.print(',');
-      Serial.print(digitalRead(11));        Serial.print(',');
-      Serial.print(analogRead(A0));        Serial.print(',');
-      Serial.print(theta_enc, 6);           Serial.print(',');
-      Serial.print(wUser_, 6);              Serial.print(',');
-      Serial.print(w_meas, 6);              Serial.print(',');
-      Serial.print(u_pwm, 1);               Serial.print(',');
-      Serial.print(fs_.forceFiltered(),4);  Serial.print(',');
-      Serial.print(tau_ext,5);              Serial.print(',');
-      Serial.println(adm_.wAdm(),5);
+
+      // ======== SIMPLIFIED GAME OUTPUT (ONLY 2 FIELDS) =========
+      Serial.print(theta_pot_deg);   // angle in degrees
+      Serial.print(',');
+      Serial.println(digitalRead(11));  // button state
+      // ========================================================
+
+      // If you want full telemetry in parallel and your board has Serial1,
+      // you could do something like this instead:
+      
+      Serial1.print(theta_pot_rad);          Serial1.print(',');
+      Serial1.print(digitalRead(11));        Serial1.print(',');
+      Serial1.print(analogRead(A0));         Serial1.print(',');
+      Serial1.print(theta_enc, 6);           Serial1.print(',');
+      Serial1.print(wUser_, 6);              Serial1.print(',');
+      Serial1.print(w_meas, 6);              Serial1.print(',');
+      Serial1.print(u_pwm, 1);               Serial1.print(',');
+      Serial1.print(fs_.forceFiltered(),4);  Serial1.print(',');
+      Serial1.print(tau_ext,5);              Serial1.print(',');
+      Serial1.println(adm_.wAdm(),5);
+      
     }
   }
 
