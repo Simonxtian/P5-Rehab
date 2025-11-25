@@ -251,7 +251,7 @@ def connect_arduino():
         return None
     try:
         # Make serial reads non-blocking
-        arduino = serial.Serial(port, 115200, timeout=0)
+        arduino = serial.Serial(port, 460800, timeout=0)
         time.sleep(2)
         arduino.reset_input_buffer()
         print(f"Connected to Arduino on {port}")

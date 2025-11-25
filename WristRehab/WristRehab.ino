@@ -8,7 +8,8 @@ Control ctrl;
 SerialParser parser(ctrl);
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(460800);  // game stream
+  Serial1.begin(115200); // full telemetry
   ctrl.begin();
   parser.begin();
   Serial.println(F("# wrist controller ready"));
