@@ -37,7 +37,7 @@ public:
         int adc = analogRead(PIN_POT);
         float theta_pot_rad = adcToThetaRad(adc);
         //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
-        float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
+        float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG);
         
         float theta_enc = enc_.thetaRad();
         enc_.updateSpeed();
@@ -84,7 +84,7 @@ public:
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
-      float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
+      float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG);
       Serial.print(theta_pot_deg);          Serial.print(',');
       Serial.print(digitalRead(11));        Serial.print(',');
       Serial.print(analogRead(A0));        Serial.print(',');

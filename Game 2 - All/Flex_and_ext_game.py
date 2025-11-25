@@ -589,7 +589,7 @@ def update_from_arduino():
                 #print(split)
             try:
                 if len(split) >= 4:
-                    PotNumber = float(split[2])
+                    PotNumber = float(split[0])
                     ButtonNumber = int(split[1])
                 else:
                     PotNumber = float(s)
