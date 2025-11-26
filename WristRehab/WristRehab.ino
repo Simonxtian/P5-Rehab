@@ -17,6 +17,6 @@ void setup() {
 }
 
 void loop() {
-  parser.poll();   // read any serial commands
-  ctrl.update();   // run control loops
+  parser.poll();   //serial commands
+  ctrl.update();   // control loops
 }
