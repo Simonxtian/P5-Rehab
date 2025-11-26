@@ -1,6 +1,6 @@
 {
-  "sonia": {
-    "name": "sonia",
+  "guest": {
+    "name": "Guest",
     "highscore": 0,
     "session_highscore": 0
   }

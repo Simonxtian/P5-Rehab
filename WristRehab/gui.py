@@ -17,6 +17,7 @@ import serial
 import serial.tools.list_ports
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
+import math  # <---- added for degree conversion
 
 DEFAULT_BAUD = 115200
 DEFAULT_PORT = None  # set like 'COM6' or '/dev/ttyACM0' if you wish
@@ -24,7 +25,8 @@ PATIENT_DB_FILE = "patients_db.json"
 
 # Telemetry columns emitted by firmware:
 # theta_pot, theta_enc, w_user, w_meas, u_pwm, force_filt, tau_ext, w_adm
-COLS = ["theta_pot","theta_enc","w_user","w_meas","u_pwm","force_filt","tau_ext","w_adm"]
+COLS = ["theta_pot","theta_enc","w_user","w_measured","u_pwm","force_filt","tau_ext","w_adm"]
+
 
 class SerialWorker(threading.Thread):
     def __init__(self, port, baud, line_queue, raw_queue, stop_event):
@@ -66,6 +68,7 @@ class SerialWorker(threading.Thread):
             pass
         self.line_queue.put(("#INFO", "Disconnected"))
 
+
 class PatientDatabase:
     """Manages patient records in JSON file"""
     def __init__(self, db_file=PATIENT_DB_FILE):
@@ -92,7 +95,11 @@ class PatientDatabase:
             'weight': weight,
             'difficulty': difficulty,
             'created': datetime.now().isoformat(),
-            'sessions': []
+            'sessions': [],
+            'highscore_flex': 0,
+            'highscore_all': 0,
+            'highscore_extend': 0
+            
         }
         self._save_db()
         return patient_id
@@ -115,6 +122,7 @@ class PatientDatabase:
         if patient_id in self.patients:
             self.patients[patient_id]['sessions'].append(session_data)
             self._save_db()
+
 
 class RehabGUI:
     def __init__(self, root):
@@ -300,12 +308,18 @@ class RehabGUI:
         # Live readouts
         live = ttk.LabelFrame(page, text="Live Telemetry")
         live.grid(row=4, column=0, sticky="ew", pady=5)
+
+        # ---------- ADDED: potentiometer live label ----------
+        self.lbl_theta_pot = ttk.Label(live, text="theta_pot: 0.00°", font=("Arial", 10))
+        self.lbl_theta_pot.grid(row=0, column=0, padx=10, pady=5)
+        # ------------------------------------------------------
+
         self.lbl_tau = ttk.Label(live, text="tau_ext: 0.000 N·m", font=("Arial", 10))
-        self.lbl_tau.grid(row=0, column=0, padx=10, pady=5)
-        self.lbl_w = ttk.Label(live, text="w_meas: 0.000 rad/s", font=("Arial", 10))
-        self.lbl_w.grid(row=0, column=1, padx=10, pady=5)
+        self.lbl_tau.grid(row=0, column=1, padx=10, pady=5)
+        self.lbl_w = ttk.Label(live, text="w_measured: 0.000 rad/s", font=("Arial", 10))
+        self.lbl_w.grid(row=0, column=2, padx=10, pady=5)
         self.lbl_u = ttk.Label(live, text="u_pwm: 0", font=("Arial", 10))
-        self.lbl_u.grid(row=0, column=2, padx=10, pady=5)
+        self.lbl_u.grid(row=0, column=3, padx=10, pady=5)
 
         # Log box
         logf = ttk.LabelFrame(page, text="System Log")
@@ -425,7 +439,7 @@ class RehabGUI:
             return
         
         # Disable admittance and stop motion
-        self._send("adm off")
+        self._send("Patient assistance - off")
         time.sleep(0.1)
         self._send("w 0")
         self._log("# Session stopped - Admittance disabled")
@@ -510,7 +524,7 @@ class RehabGUI:
             
             # Ensure admittance is OFF when starting
             time.sleep(0.5)  # Give device time to initialize
-            self._send("adm off")
+            self._send("Patient assistance - off")
             self._send("w 0")
             self._log("# Connection established - Admittance disabled")
         else:
@@ -546,9 +560,16 @@ class RehabGUI:
             try:
                 vals = [float(x) for x in parts]
                 rec = dict(zip(COLS, vals))
+
+                # ---------------------- DEGREE CONVERSION ----------------------
+                theta_deg = math.degrees(rec["theta_pot"])
+                self.lbl_theta_pot.config(text=f"theta_pot: {theta_deg:.2f}°")
+                # ----------------------------------------------------------------
+
                 self.lbl_tau.config(text=f"tau_ext: {rec['tau_ext']:.3f} N·m")
-                self.lbl_w.config(text=f"w_meas: {rec['w_meas']:.3f} rad/s")
+                self.lbl_w.config(text=f"w_measured: {rec['w_measured']:.3f} rad/s")
                 self.lbl_u.config(text=f"u_pwm: {rec['u_pwm']:.0f}")
+
                 if self.csv_writer:
                     self.csv_writer.writerow([time.time()] + vals)
                 return
@@ -596,7 +617,7 @@ class RehabGUI:
             if not messagebox.askyesno("Active Session", 
                 "A session is currently active. Stop it and run new MVC test?"):
                 return
-            self._send("adm off")
+            self._send("Patient assistance - off")
             time.sleep(0.2)
         
         # Sequence: adm off; vd 0; tare; eq hold; collect tau_ext max 5 s while asking user to extend
@@ -621,7 +642,7 @@ class RehabGUI:
 
         # Proper sequence: disable admittance, stop motion, tare force sensor, set equilibrium
         self._log("# Starting MVC test preparation...")
-        self._send("adm off")
+        self._send("Patient assistance - off")
         time.sleep(0.1)
         self._send("w 0")
         time.sleep(0.1)
@@ -657,7 +678,6 @@ class RehabGUI:
 
         tau_ref = max(0.0, diff * tau_max)  # difficulty scaling
         # Compute J,B,K per your policy
-        import math
         theta_target = math.radians(th_deg)
         amax = math.radians(amax_d)
         J = tau_ref / amax if amax > 1e-6 else 0.0
