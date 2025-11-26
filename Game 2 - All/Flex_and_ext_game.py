@@ -62,11 +62,8 @@ HIGHSCORE_FILE = "highscore_all.json"
 def get_highscore_file_path():
     return os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
-
+# Load patient data from JSON
 def load_patient_data():
-    """
-    Loads the entire JSON, returns the specific data for PATIENT_ID.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -89,11 +86,8 @@ def load_patient_data():
 
     return p_data.get("highscore", 0)
 
-
+# Reset session highscore at game launch
 def reset_session_highscore_for_patient():
-    """
-    Resets the session highscore for the current patient to 0 at game launch.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -124,11 +118,8 @@ def reset_session_highscore_for_patient():
     except Exception as e:
         print("Error resetting session score:", e)
 
-
+# Update and save patient score data
 def save_score_data(current_score):
-    """
-    Updates the JSON file for PATIENT_ID.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -187,6 +178,7 @@ def load_calibration():
             val_flexion = data.get("flexion", -45)
             val_extension = data.get("extension", 45)
     except Exception:
+        # default values, negatives are because we defined the middle of the potentiometer value as the 0.
         val_flexion = -45
         val_extension = 45
 
@@ -207,7 +199,7 @@ def load_image(filename, size, fallback="rect"):
         return ImageTk.PhotoImage(img)
 
 
-# FIXED: Just filenames
+# Load images
 bg_photo = load_image("game_background.jpg", (WIDTH, HEIGHT))
 basket_photo = load_image("basket.png", (80, 100), fallback="basket")
 blue_bird_photo = load_image("blue_bird.png", (70, 50), fallback="blue")
@@ -262,14 +254,14 @@ class Bird:
         self.image = blue_bird_photo if color == "blue" else bomb_photo
         self.bird = canvas_obj.create_image(x, y, image=self.image, anchor="nw")
         self.explosion = None
-
+    # Explosion effect when bomb hits or bird missed
     def place_explosion(self, Xcoord, Ycoord):
         self.explosion = canvas.create_image(
             Xcoord, Ycoord, anchor="nw", image=explosion_photo
         )
         self.canvas.update()
         self.canvas.after(500, lambda: self.canvas.delete(self.explosion))
-
+    # Bird movement and collision detection
     def move_bird(self):
         global limit, dist, game_active
         try:
@@ -283,6 +275,7 @@ class Bird:
 
             if bird_x <= 50:
                 if dist - offset <= bird_y <= dist + 100 + offset:
+                    # If we catch a blue bird +1 score, else -1 life
                     if self.color == "blue":
                         change_score(+1)
                     else:
@@ -292,6 +285,7 @@ class Bird:
                     bird_set()
                 else:
                     canvas.delete(self.bird)
+                    # Missed bird, if blue -1 life and explosion
                     if self.color == "blue":
                         change_lives(-1)
                         self.place_explosion(10, bird_y)
@@ -304,7 +298,7 @@ class Bird:
         except Exception:
             print("Not Worky")
 
-
+# --- Basket Class ---
 class Basket:
     def __init__(self, canvas_obj, x, y):
         self.canvas = canvas_obj
@@ -323,16 +317,16 @@ class Basket:
 
 
 # --- Functions ---
+# Set bird at random position 
 def bird_set():
     if not game_active:
         return
     y_value = randint(50, HEIGHT - 100)
-    color = "blue" if randint(1, 10) <= 7 else "red"
-    bird = Bird(canvas, WIDTH - 80, y_value, color)
+    bird = Bird(canvas, WIDTH - 80, y_value, "blue")
     bird.move_bird()
     canvas.tag_raise(bar_obj.basket)
 
-
+# Change lives and check for game over
 def change_lives(amount):
     global lives, game_active, Total_lives_text, total_score, speed_value
     if not game_active:
@@ -350,7 +344,7 @@ def change_lives(amount):
         speed_value = base_speed
         return
 
-
+# Change score and check for level up or game over
 def change_score(amount):
     global score, total_score, speed_value, game_active, level, base_speed
     if not game_active:
@@ -367,6 +361,7 @@ def change_score(amount):
         total_score = 0
         level = 1
         speed_value = base_speed
+        # When we reach 30 points we level up
     elif score >= 30:
         game_active = False
         level += 1
@@ -376,7 +371,7 @@ def change_score(amount):
             f"You reached {total_score} points!\nNext level unlocked!\n(Level {level})"
         )
 
-
+# Keyboard controls for basket movement
 def on_key_press(event):
     global dist
     if event.keysym in ("Up", "w", "W"):
@@ -386,7 +381,7 @@ def on_key_press(event):
         dist = min(HEIGHT - 120, dist + 30)
         bar_obj.set_position(dist)
 
-
+# Score board with the score and highscore display, and buttons of play again or exit
 def score_board(message="Game Over!"):
     # Use new saving logic
     new_hs = save_score_data(total_score)
@@ -432,6 +427,7 @@ def score_board(message="Game Over!"):
     c2.create_window(200, 220, window=btn_play)
     c2.create_window(200, 280, window=btn_exit)
 
+    # Check for button press to select option
     def check_button_press_after():
         global ButtonPress, normalized
         # Do NOT call update_from_arduino() here; it already runs in its own loop
@@ -469,7 +465,7 @@ def start_menu():
         font=("Arial", 24, "bold"),
         fill="darkblue",
     )
-
+    # Explain the game instructions
     canvas.create_text(
         WIDTH // 2,
         260,
@@ -484,7 +480,7 @@ def start_menu():
         fill="black",
         justify="center",
     )
-
+    # Speed selection slider
     canvas.create_text(
         WIDTH // 2,
         400,
@@ -514,7 +510,7 @@ def start_menu():
     )
     play_button.place(x=320, y=520)
     menu_widgets.append(play_button)
-
+    # Back to launcher button if launched from there
     if len(sys.argv) >= 2:
         back_button = Button(
             canvas,
@@ -526,13 +522,10 @@ def start_menu():
         )
         back_button.place(x=10, y=10)
         menu_widgets.append(back_button)
-
+    # Auto update speed based on flexion/extension
     def check_auto():
         global ButtonPress, normalized
-
-
         speed_slider.set(max(1, min(6, int(normalized * 6) + 1)))
-
 
         if ButtonPress == 1:
             start_game(speed_slider.get())
@@ -540,11 +533,9 @@ def start_menu():
             canvas.after(50, check_auto)
 
     check_auto()
-
-    # Start Arduino polling loop ONCE from here
     canvas.after(50, update_from_arduino)
 
-
+# When we select the speed and start the game
 def start_game(selected_speed):
     global speed_value, base_speed, level, ButtonPress
     base_speed = selected_speed
@@ -555,11 +546,9 @@ def start_game(selected_speed):
     menu_widgets.clear()
     main()
 
-
-
+# Arduino data reading and basket position updating
 def update_from_arduino():
     global ButtonPress, normalized, angle, val_flexion, val_extension
-
 
     if arduino:
         try:
@@ -567,24 +556,19 @@ def update_from_arduino():
             if not raw:
                 root.after(50, update_from_arduino)
                 return
-
-
+            
             split = raw.split(',')
 
 
             if len(split) >= 2:
-                angle = float(split[0]) # grados reales, positivos o negativos
-                btn = int(split[1]) # botón (0=presionado, 1=no presionado)
+                angle = float(split[0]) # degrees negatives and positives
+                btn = int(split[1]) # buton (0=pressed, 1=not pressed)
             else:
                 angle = float(raw)
-                btn = 1 # no presionado por defecto
+                btn = 1 # not pressed by default
 
-
-            # --- BOTÓN CORREGIDO según tu lógica ---
             ButtonPress = 1 if btn == 0 else 0
-
-
-            # --- Normalización usando calibración personalizada ---
+            # Normalize angle between flexion and extension
             cal_min = min(val_flexion, val_extension)
             cal_max = max(val_flexion, val_extension)
 
@@ -593,7 +577,7 @@ def update_from_arduino():
             normalized = (clamped - cal_min) / (cal_max - cal_min)
 
 
-            # convertir normalized a posición vertical
+            # Normalized to y position
             top_limit = 0
             bot_limit = HEIGHT - 120
             y_pos = bot_limit - normalized * (bot_limit - top_limit)
@@ -624,7 +608,7 @@ def main():
 
     # Load patient specific highscore
     highscore = load_patient_data()
-
+    # Create HUD texts. Lives, Total Score, Level Score, Highscore at the top screen
     Total_lives_text = canvas.create_text(
         100,
         30,
@@ -654,7 +638,7 @@ def main():
         fill="black",
     )
 
-    # Player Name in HUD
+    # Player Name in HUD that is playing
     canvas.create_text(
         WIDTH / 2,
         70,
