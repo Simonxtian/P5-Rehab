@@ -4,6 +4,11 @@
   "sonia": {
     "name": "sonia",
     "highscore": 4,
-    "session_highscore": 4
+    "session_highscore": 0
+  },
+  "guest": {
+    "name": "Guest",
+    "highscore": 13,
+    "session_highscore": 0
   }
 }

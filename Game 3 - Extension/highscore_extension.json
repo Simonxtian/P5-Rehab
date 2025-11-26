@@ -1,12 +1,12 @@
 {
   "guest": {
     "name": "Guest",
-    "highscore": 1,
-    "session_highscore": 1
+    "highscore": 18,
+    "session_highscore": 0
   },
   "sonia": {
     "name": "sonia",
     "highscore": 3,
-    "session_highscore": 3
+    "session_highscore": 0
   }
 }

@@ -20,7 +20,6 @@ PATIENT_DB_FILE = "patients_db.json"
 CALIBRATION_FILE = r"WristRehab\calibration_data.json"
 
 # --- GAME PATHS ---
-# IMPORTANT: Adjust these strings to match your actual folder structure
 GAME_1_PATH = r"Game 1 - Flexion\flexion_game.py"
 GAME_2_PATH = r"Game 2 - All\Flex_and_ext_game.py"
 GAME_3_PATH = r"Game 3 - Extension\extension.py"
@@ -28,9 +27,7 @@ GAME_3_PATH = r"Game 3 - Extension\extension.py"
 # Telemetry columns
 COLS = ["theta_pot","theta_enc","w_user","w_meas","u_pwm","force_filt","tau_ext","w_adm"]
 
-# -----------------------------------------------------------------------------
 # CLASS 1: Serial Worker (Background Thread)
-# -----------------------------------------------------------------------------
 class SerialWorker(threading.Thread):
     def __init__(self, port, baud, line_queue, raw_queue, stop_event):
         super().__init__(daemon=True)
@@ -71,9 +68,7 @@ class SerialWorker(threading.Thread):
             pass
         self.line_queue.put(("#INFO", "Disconnected"))
 
-# -----------------------------------------------------------------------------
-# CLASS 2: Patient Database
-# -----------------------------------------------------------------------------
+# CLASS 2: Patient Database in a json file
 class PatientDatabase:
     def __init__(self, db_file=PATIENT_DB_FILE):
         self.db_file = db_file
@@ -91,7 +86,7 @@ class PatientDatabase:
     def _save_db(self):
         with open(self.db_file, 'w') as f:
             json.dump(self.patients, f, indent=2)
-    
+    # adding the patient with all the details
     def add_patient(self, name, weight, difficulty):
         p_id = name.lower().replace(' ', '_')
         self.patients[p_id] = {
@@ -128,9 +123,7 @@ class PatientDatabase:
                 last_session[key] = value
             self._save_db()
 
-# -----------------------------------------------------------------------------
 # CLASS 3: Main GUI
-# -----------------------------------------------------------------------------
 class RehabGUI:
     def __init__(self, root):
         self.root = root
@@ -163,7 +156,7 @@ class RehabGUI:
         self._show_page("patient_select")
         self._poll_queues()
 
-    # [ ... GUI Building methods unchanged for brevity, they are the same ... ]
+    # GUI Building methods unchanged for brevity, they are the same
     def _build_pages(self):
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
@@ -184,7 +177,7 @@ class RehabGUI:
         content.grid(row=1, column=0, sticky="nsew")
         content.columnconfigure(0, weight=1)
         content.columnconfigure(1, weight=1)
-        
+        # selecting existing patient already created
         select_frm = ttk.LabelFrame(content, text="Select Existing Patient", padding=10)
         select_frm.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         list_frame = ttk.Frame(select_frm)
@@ -200,7 +193,7 @@ class RehabGUI:
         info_lbl = ttk.Label(select_frm, textvariable=self.patient_info_var, relief="sunken", padding=10)
         info_lbl.grid(row=2, column=0, sticky="ew", pady=10)
         ttk.Button(select_frm, text="Load Patient", command=self._load_selected_patient).grid(row=3, column=0, pady=5)
-        
+        # registering a new patient and adding their details
         register_frm = ttk.LabelFrame(content, text="Register New Patient", padding=10)
         register_frm.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
         ttk.Label(register_frm, text="Name:").grid(row=0, column=0, sticky="w", pady=5)
@@ -225,13 +218,17 @@ class RehabGUI:
         ttk.Label(header, textvariable=self.patient_header_var, font=("Arial", 12, "bold")).pack(side="left")
         btn_frame = ttk.Frame(header)
         btn_frame.pack(side="right")
+        # stop therapy button
         self.btn_stop_session = ttk.Button(btn_frame, text="Stop Therapy", command=self._stop_session, state="disabled")
         self.btn_stop_session.pack(side="left", padx=5)
+        # proceed to games button
         self.btn_goto_games = ttk.Button(btn_frame, text="Proceed to Games >>", command=self._go_to_game_page, state="disabled")
         self.btn_goto_games.pack(side="left", padx=5)
+        # change patient button
         ttk.Button(btn_frame, text="← Change Patient", command=self._go_to_patient_page).pack(side="left")
         con = ttk.LabelFrame(page, text="Connection")
         con.grid(row=1, column=0, sticky="ew", pady=5)
+        # serial port connection controls
         ttk.Label(con, text="Port:").grid(row=0, column=0, padx=5)
         self.port_cmb = ttk.Combobox(con, width=15, state="readonly")
         self.port_cmb.grid(row=0, column=1, padx=3)
@@ -242,6 +239,7 @@ class RehabGUI:
         ttk.Button(con, text="Refresh", command=self._populate_ports).grid(row=0, column=4, padx=3)
         self.btn_connect = ttk.Button(con, text="Connect", command=self.on_connect)
         self.btn_connect.grid(row=0, column=5, padx=3)
+        # therapy parameters
         params = ttk.LabelFrame(page, text="Parameters")
         params.grid(row=2, column=0, sticky="ew", pady=5)
         self.therapy_weight_var = tk.StringVar()
@@ -251,6 +249,7 @@ class RehabGUI:
         ttk.Label(params, text="Diff:").grid(row=0, column=2, padx=5)
         ttk.Entry(params, textvariable=self.therapy_diff_var, width=10).grid(row=0, column=3, padx=3)
         ttk.Button(params, text="Send Mass", command=self.on_set_mass).grid(row=0, column=6, padx=10)
+        # maximum voluntary contraction (MVC) test controls
         mvc = ttk.LabelFrame(page, text="MVC Test (Start of Session)")
         mvc.grid(row=3, column=0, sticky="ew", pady=5)
         ttk.Label(mvc, text="θ_target:").grid(row=0, column=0, padx=5)
@@ -262,6 +261,7 @@ class RehabGUI:
         ttk.Button(mvc, text="Run MVC (5s)", command=self.on_run_mvc).grid(row=0, column=4, padx=10)
         self.mvc_label = ttk.Label(mvc, text="Results: -", foreground="blue")
         self.mvc_label.grid(row=1, column=0, columnspan=5, sticky="w", pady=5, padx=5)
+        # telemetry display for seeing the results
         live = ttk.LabelFrame(page, text="Telemetry")
         live.grid(row=4, column=0, sticky="ew", pady=5)
         self.lbl_theta_pot = ttk.Label(live, text="Angle: 0.00°", font=("Arial", 10))
@@ -275,7 +275,8 @@ class RehabGUI:
         self.txt = tk.Text(logf, height=8, yscrollcommand=log_scroll.set)
         self.txt.pack(side="left", fill="both", expand=True)
         log_scroll.config(command=self.txt.yview)
-
+    
+    # Calibration page and game selection page
     def _build_game_page(self):
         page = ttk.Frame(self.root, padding=10)
         self.pages["game_launcher"] = page
@@ -287,19 +288,23 @@ class RehabGUI:
         ttk.Label(top_bar, text="Calibration & Games", font=("Arial", 16, "bold")).pack(side="left", padx=20)
         val_frame = ttk.Frame(page, relief="sunken", borderwidth=1)
         val_frame.grid(row=1, column=0, sticky="ew", pady=10)
+        # seeing the current angle during calibration
         ttk.Label(val_frame, text="Current Angle:", font=("Arial", 12)).pack(pady=5)
         self.lbl_cal_value = ttk.Label(val_frame, text="0.00°", font=("Arial", 40, "bold"), foreground="#2c3e50")
         self.lbl_cal_value.pack(pady=10)
         self.cal_container = ttk.Frame(page)
         self.cal_container.grid(row=2, column=0, sticky="nsew")
         self.frm_cal_wizard = ttk.LabelFrame(self.cal_container, text="Calibration Wizard", padding=20)
+        # starting calibration button
         self.btn_start_cal = ttk.Button(self.frm_cal_wizard, text="START NEW CALIBRATION", command=self.start_calibration)
         self.frm_cal_steps = ttk.Frame(self.frm_cal_wizard)
         self.lbl_cal_instr = tk.Label(self.frm_cal_steps, text="...", font=("Arial", 14), wraplength=400, justify="center")
         self.lbl_cal_instr.pack(pady=20)
+        # capture the three values during calibration and saved it
         self.btn_cal_action = ttk.Button(self.frm_cal_steps, text="CAPTURE VALUE", command=self.next_calibration_step)
         self.btn_cal_action.pack(fill="x", padx=40, pady=10, ipady=10)
         ttk.Button(self.frm_cal_steps, text="Cancel", command=self.cancel_calibration).pack(pady=5)
+        # Selection of the games after calibration
         self.frm_game_select = ttk.LabelFrame(self.cal_container, text="Select Game", padding=20)
         tk.Label(self.frm_game_select, text="Calibration Complete!", font=("Arial", 14, "bold"), fg="green").pack(pady=(10, 5))
         ttk.Button(self.frm_game_select, text="GAME 1: Flexion", command=lambda: self.launch_game(GAME_1_PATH)).pack(fill="x", pady=5, ipady=10)
@@ -314,7 +319,7 @@ class RehabGUI:
         self.pages[page_name].grid(row=0, column=0, sticky="nsew")
         self.current_page = page_name
         if page_name == "patient_select": self._refresh_patient_list()
-    
+    # navigation between pages
     def _go_to_game_page(self):
         self._show_page("game_launcher")
         self.reset_to_calibration()
@@ -339,7 +344,7 @@ class RehabGUI:
         if idx < len(p_ids):
             p = self.patient_db.get_patient(p_ids[idx])
             self.patient_info_var.set(f"Name: {p['name']}\nWeight: {p['weight']} kg\nSessions: {len(p['sessions'])}")
-            
+    # loading the selected patient        
     def _load_selected_patient(self):
         selection = self.patient_listbox.curselection()
         if not selection: return
@@ -351,6 +356,7 @@ class RehabGUI:
             self._update_therapy_page_with_patient()
             self._show_page("therapy")
 
+    # new patient registration
     def _register_new_patient(self):
         name = self.new_name_var.get().strip()
         if not name: return
@@ -374,6 +380,7 @@ class RehabGUI:
         self.port_cmb['values'] = ports
         if ports: self.port_cmb.set(ports[0])
 
+    # Connect ports
     def on_connect(self):
         if not self.connected:
             port = self.port_cmb.get()
@@ -443,7 +450,8 @@ class RehabGUI:
     def _log(self, msg):
         self.txt.insert("end", msg + "\n")
         self.txt.see("end")
-
+    
+    # setting the mass based on patient weight
     def on_set_mass(self):
         if not self.current_patient: return
         try:
@@ -453,7 +461,7 @@ class RehabGUI:
             self._send(f"totalmass {mass:.4f}")
             self._log(f"# Mass set: {mass:.4f}")
         except: messagebox.showerror("Error", "Invalid weight")
-
+    # running the MVC test and calculating parameters
     def on_run_mvc(self):
         if not self.current_patient or not self.connected:
             messagebox.showerror("Error", "Connect & Load Patient")
@@ -487,6 +495,7 @@ class RehabGUI:
         B = 2 * 1.0 * math.sqrt(J * (tau_ref/1.0))
         K = tau_ref / 1.0
         self.mvc_label.config(text=f"Max: {tau_max:.2f} | Ref: {tau_ref:.2f}")
+        # all the session data saved here, including calibration data and highscores
         master_session = {
             'timestamp': datetime.now().isoformat(),
             'type': 'THERAPY_SESSION',
@@ -518,6 +527,7 @@ class RehabGUI:
         self.btn_stop_session.config(state="disabled")
         self._log("Session Stopped")
 
+    # CALIBRATION METHODS
     def reset_to_calibration(self):
         self.frm_cal_wizard.pack(fill="both", expand=True, padx=10, pady=10)
         self.frm_game_select.pack_forget()
@@ -537,7 +547,7 @@ class RehabGUI:
         self.cal_step = 0
         self.frm_cal_steps.pack_forget()
         self.btn_start_cal.pack(fill="x", pady=40, ipady=15)
-
+    # Capturing the three calibration steps
     def next_calibration_step(self):
         val = self.current_theta_deg
         if self.cal_step == 1:
@@ -553,7 +563,7 @@ class RehabGUI:
             self.save_calibration_json()
             self.frm_cal_wizard.pack_forget()
             self.frm_game_select.pack(fill="both", expand=True, padx=10, pady=10)
-
+    # Updating the UI during calibration steps
     def update_wizard_ui(self):
         if self.cal_step == 1:
             self.lbl_cal_instr.config(text="STEP 1: Straight (Neutral)", fg="blue")
@@ -564,7 +574,7 @@ class RehabGUI:
         elif self.cal_step == 3:
             self.lbl_cal_instr.config(text="STEP 3: Bend Up (Extension)", fg="#c0392b")
             self.btn_cal_action.config(text="CAPTURE EXTENSION")
-
+    # Saving calibration data to json and updating patient session
     def save_calibration_json(self):
         try:
             with open(CALIBRATION_FILE, 'w') as f:
@@ -589,7 +599,7 @@ class RehabGUI:
         game_dir = os.path.dirname(script_path)
         game_filename = os.path.basename(script_path)
         
-        # 1. Determine score key based on which game file it is
+        # Determine score key based on which game file it is, each game has its own json file
         game_title = "Unknown"
         score_key = "score_generic"
         json_filename = None
@@ -621,7 +631,7 @@ class RehabGUI:
             p_id = self.current_patient_id if self.current_patient_id else "guest"
             p_name = self.current_patient['name'] if self.current_patient else "Guest"
 
-            # 2. Pass both ID and Name to the game script
+            # Pass both ID and Name to the game script
             self.current_game_process = subprocess.Popen(
                 [sys.executable, game_filename, p_id, p_name],
                 cwd=game_dir 
@@ -636,7 +646,6 @@ class RehabGUI:
             self.on_connect()
 
     def _monitor_game(self, game_title, score_key):
-        # Poll until game process ends
         if self.current_game_process.poll() is None:
             self.root.after(500, lambda: self._monitor_game(game_title, score_key))
             return
@@ -645,7 +654,7 @@ class RehabGUI:
         
         final_session_score = 0
         
-        # 1. READ from the specific game's JSON file using the patient ID
+        # READ from the specific game's JSON file using the patient ID
         if self.current_game_json_path and os.path.exists(self.current_game_json_path):
             try:
                 with open(self.current_game_json_path, "r") as f:
@@ -663,7 +672,7 @@ class RehabGUI:
             except Exception as e:
                 self._log(f"# Error reading game results: {e}")
         
-        # 2. UPDATE Patient Database
+        # UPDATE Patient Database
         if self.current_patient_id:
             self.patient_db.update_active_session(self.current_patient_id, {
                 score_key: final_session_score

@@ -74,6 +74,29 @@
     "weight": 40.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:52:00.039383",
-    "sessions": []
+    "sessions": [
+      {
+        "timestamp": "2025-11-25T14:12:09.245089",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": -142.67,
+        "extension_rom": -142.67,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 1,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-11-26T11:26:34.110059",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 9.62,
+        "extension_rom": 108.07,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      }
+    ]
   }
 }
