@@ -62,7 +62,7 @@ def load_patient_data():
     })
     
     return p_data.get("highscore", 0)
-
+# reset each session highscore for patient
 def reset_session_highscore_for_patient():
     file_path = get_highscore_file_path()
     full_data = {}
@@ -140,7 +140,7 @@ def load_calibration():
 
         with open(file_path, "r") as f:
             data = json.load(f)
-
+        # Use only neutral and flexion values
         val_recta = float(data.get("neutral", 450))
         val_flexion = float(data.get("flexion", 120))
 
@@ -199,6 +199,8 @@ def connect_arduino():
         return s
     except:
         return None
+
+# ---------- MAIN GAME CLASS ----------
 class FishingGame:
     def __init__(self, root):
         self.root = root
@@ -235,13 +237,14 @@ class FishingGame:
             self.back_btn = Button(root, text="← Back to Launcher", bg="#e74c3c", fg="white",
                                    command=lambda: root.destroy())
             self.back_btn.pack(side="right", padx=10)
-
+        # in case we want to use keyboard controls for testing without Arduino
         root.bind("<space>", lambda e: self.toggle_sweep())
         root.bind("<w>", self.adjust_rope)
         root.bind("<s>", self.adjust_rope)
         root.bind("<Up>", self.adjust_rope)
         root.bind("<Down>", self.adjust_rope)
 
+        # --- GAME STATE ---
         self.rod_x = 100
         self.rod_dir = 1
         self.rope_len = 0
@@ -262,7 +265,7 @@ class FishingGame:
         self.game_over = False
         self.waiting_for_retraction = False
         
-        # --- NUEVA VARIABLE ---
+        # --- NEW VARIABLE ---
         self.was_extended = False 
         
         self.spawn_objects()
@@ -275,7 +278,7 @@ class FishingGame:
         for o in self.objects:
             self.canvas.delete(o["id"])
         self.objects.clear()
-
+        # Spawn new objects randomly on the bottom of the screen
         for _ in range(NUM_OBJECTS):
             typ, imgname, pts = choice(OBJECT_TYPES)
             img = self.obj_imgs[typ]
@@ -296,25 +299,22 @@ class FishingGame:
     def toggle_sweep(self):
         if self.waiting_for_retraction:
             return
-
-        # SI ESTABA MOVIÉNDOSE → DETENER TOTALMENTE
+        # Stop the rod movement
         if self.sweeping:
             self.sweeping = False
             self.stopped = True
             
-            # Marcamos que todavía NO se ha completado el ciclo
             self.was_extended = False
             
-            # Cuerda visible mínima
-            self.set_rope(20)
+            # When we stop the fishing rod we show a little of the rope
+            self.set_rope(6)
             return
 
-        # SI ESTABA DETENIDO → SOLO REANUDA SI LA CUERDA ESTÁ COMPLETAMENTE RECOGIDA
+        # we restart the movement of the rope if the rope is less than the initial position
         if not self.was_extended and self.rope_len <= 5:
-            # NO reanudar: aún no hubo ciclo
             return
 
-        # SI YA HUBO EXTENSIÓN + RETRACCIÓN → PERMITIR MOVER
+        # if the legth of the rope is less than the initial positon we can move
         if self.rope_len <= 5:
             self.sweeping = True
             self.stopped = False
@@ -333,7 +333,7 @@ class FishingGame:
         self.temp_texts.clear()
 
         self.waiting_for_retraction = False
-        self.was_extended = False # Resetear bandera
+        self.was_extended = False
         self.canvas.itemconfig(self.rope_item, state="normal")
 
     def adjust_rope(self, event):
@@ -360,24 +360,19 @@ class FishingGame:
         self.canvas.coords(self.rope_item, tx, ty, tx, ty + self.rope_len)
 
     def set_rope(self, length):
-        # Actualizamos la longitud visual
         self.rope_len = max(0, min(ROPE_MAX_LEN, length))
-
-        # --- LÓGICA DE DETECCIÓN DE MOVIMIENTO ---
-
-        # 1. Si la cuerda baja significativamente (> 30px), marcamos que hubo intento de pesca.
-        # Esto evita que se reanude solo por "ruido" o temblores del sensor.
+        # Logic about movement detection
+        # if rope is extended significantly, mark that an extension happened, avoiding noise
         if self.rope_len > 30:
             self.was_extended = True
 
-
         if not self.sweeping and not self.game_over and self.rope_len < 10:
             if self.was_extended:
-                # ¡Ciclo completado! Reanudamos el barrido lateral
+                # cycle complete, restart lateral movement of the rope
                 self.sweeping = True
                 self.stopped = False
                 self.was_extended = False
-                self.rope_len = 0 # Aseguramos que se vea totalmente recogida
+                self.rope_len = 0 
     # ---------- COLLISIONS ----------
     def check_hit(self):
         tip_x, tip_y = self.rod_tip()
@@ -409,8 +404,9 @@ class FishingGame:
                 self.waiting_for_retraction = True
                 self.sweeping = False
                 self.stopped = True
-                self.was_extended = False # Resetear aquí también por seguridad
+                self.was_extended = False 
 
+                # Check win condition
                 if self.all_good_collected():
                     self.game_over = True
                     self.root.after(600, self.show_end_menu)
@@ -426,7 +422,7 @@ class FishingGame:
                 raw = self.arduino.readline()
                 s = raw.decode("utf-8", errors="ignore").strip()
                 split = s.split(",")
-
+                # Read the value and button state from Arduino
                 if len(split) >= 1:
                     PotNumber = float(split[0])
                     Button = int(split[1])
@@ -439,29 +435,29 @@ class FishingGame:
 
                 last_button_state = Button
 
-                # Pot normalization
+                # Angle normalization
                 cal_min = min(val_recta, val_flexion)
                 cal_max = max(val_recta, val_flexion)
                 angle = PotNumber
                 clamped = max(cal_min, min(cal_max, angle))
-
+                # Normalize between 0 and 1
                 if (val_flexion - val_recta) != 0:
                     norm = (clamped - val_recta) / (val_flexion - val_recta)
                 else:
                     norm = 0
-
+                
                 norm = max(0, min(1, norm))
-
+                # Map to rope length
                 rope = int(norm * ROPE_MAX_LEN)
                 
-                # Solo permitir bajar cuerda si el paciente realmente flexiona
+                # Only flexion logic when stopped and make the movement
                 if not self.sweeping:
 
-                    # Si el paciente baja la muñeca → marcar extensión válida
+                    # If the patient extends the rope significantly, mark that an extension happened
                     if rope > 30:
                         self.was_extended = True
 
-                    # Si ya hubo extensión → permitir que la retraiga a 0
+                    # Only update rope if changed significantly to avoid noise
                     if self.was_extended:
                         self.set_rope(rope)
 
@@ -479,7 +475,6 @@ class FishingGame:
         if self.waiting_for_retraction:
             if self.rope_len <= 2:
                 self.waiting_for_retraction = False
-                # Aquí también forzamos el reinicio si acabamos de pescar algo
                 self.sweeping = True
                 self.stopped = False
             return
@@ -491,7 +486,7 @@ class FishingGame:
             if self.rod_x > WIDTH - self.rod_img.width():
                 self.rod_dir = -1
             self.canvas.coords(self.rod_item, self.rod_x, ROD_Y)
-            # Forzar cuerda a 0 mientras se mueve horizontalmente
+            # When the rod is moving, the rope is retracted
             self.set_rope(0)
         else:
             self.check_hit()
@@ -520,12 +515,13 @@ class FishingGame:
         win.resizable(False, False)
         c = Canvas(win, width=400, height=350)
         c.pack()
-
+        # Show the Score, All-Time Highscore, and Time taken
         msg = (f" You caught all good items!\n\nYour Score: {self.score}"
                f"\nAll-Time Highscore: {new_high}\nTime: {total_time}s")
         c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"),
                       fill="black", justify="center")
-
+        
+        # Next Level and Exit Buttons
         def _play_again():
             win.destroy()
             self.level += 1
@@ -545,17 +541,17 @@ class FishingGame:
         Button(win, text="EXIT", bg="red", fg="white", font=("Arial", 14, "bold"),
                command=self.exit_and_save).place(x=210, y=250, width=120, height=40)
         
-    # ---------- START MENU ----------
+# ---------- START MENU ----------
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
     canvas.create_rectangle(0, 0, WIDTH, HEIGHT, fill="#a9d8ff", outline="")
-    canvas.create_text(WIDTH//2, 150, text="🎣 Fishing Flexion Game 🎣",
+    canvas.create_text(WIDTH//2, 150, text=" Fishing Flexion Game 🎣",
                        font=("Comic Sans MS", 36, "bold"), fill="navy")
     
     canvas.create_text(WIDTH//2, 220, text=f"Welcome, {PATIENT_NAME}!",
                        font=("Arial", 20, "bold"), fill="navy")
-    
+    # Explain the game instructions
     canvas.create_text(WIDTH//2, 320,
                        text=("Move the rod left and right automatically.\n"
                              "Press the button to stop the rod.\n"
@@ -563,7 +559,7 @@ def start_menu(root):
                              "Catch gold and fish, avoid trash.\n"
                              "When you collect all good items, you win!"),
                        font=("Comic Sans MS", 16), fill="black", justify="center")
-    
+    # If we press the button on the Arduino, start the game
     def check_button_press():
         global last_button_state
 
