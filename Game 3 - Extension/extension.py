@@ -19,9 +19,9 @@ JUMP_HEIGHT = (TOTAL_VERTICAL_DISTANCE / PLATFORM_COUNT)
 JUMP_SPEED = 25
 UPDATE_MS = 25
 
-# Calibration: neutral (recta) and extension angles in degrees
-val_recta = -40       # default neutral
-val_extension = 120   # default max extension
+# Calibration: neutral and extension angles in degrees
+val_recta = 0       # default neutral
+val_extension = 60   # default max extension
 
 arduino = None
 last_button_state = 0
@@ -32,7 +32,7 @@ extension_pct = 0.0
 PATIENT_ID = "guest"
 PATIENT_NAME = "Guest"
 
-# Check command line args: python extension.py <id> <name>
+# Check command line to know the <id> <name> from interface
 if len(sys.argv) >= 2:
     PATIENT_ID = sys.argv[1]
 if len(sys.argv) >= 3:
@@ -41,15 +41,12 @@ if len(sys.argv) >= 3:
 # --- Highscore handling ---
 HIGHSCORE_FILE = "highscore_extension.json"
 
-
+# path to highscore file
 def get_highscore_file_path():
     return os.path.join(os.path.dirname(__file__), HIGHSCORE_FILE)
 
-
+# Loads the full JSON, returns the specific data for PATIENT_ID.
 def load_patient_data():
-    """
-    Loads the entire JSON, returns the specific data for PATIENT_ID.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -69,11 +66,8 @@ def load_patient_data():
 
     return p_data.get("highscore", 0)
 
-
+# Resets the session highscore for the current patient to 0 at game launch.
 def reset_session_highscore_for_patient():
-    """
-    Resets the session highscore for the current patient to 0 at game launch.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -100,11 +94,8 @@ def reset_session_highscore_for_patient():
     except Exception as e:
         print("Error resetting session score:", e)
 
-
+# Updates the JSON file for PATIENT_ID.
 def save_score_data(current_score):
-    """
-    Updates the JSON file for PATIENT_ID.
-    """
     file_path = get_highscore_file_path()
     full_data = {}
 
@@ -124,7 +115,7 @@ def save_score_data(current_score):
     if current_score > p_data["highscore"]:
         p_data["highscore"] = int(current_score)
 
-    # Update session highscore (track max of this session)
+    # Update session highscore, we track the max score in this session
     if current_score > p_data["session_highscore"]:
         p_data["session_highscore"] = int(current_score)
 
@@ -148,11 +139,8 @@ highscore = load_patient_data()
 current_session_highscore = 0  # Tracked in memory
 
 # --- CALIBRATION LOADING ---
+#  Load neutral and extension angles from the calibration file.
 def load_calibration():
-    """
-    Load neutral and extension angles from the common calibration file.
-    Fallback to something reasonable if the file or values are bad.
-    """
     global val_recta, val_extension
     try:
         game_dir = os.path.dirname(__file__)
@@ -175,11 +163,11 @@ def load_calibration():
         val_recta = -40
         val_extension = 120
 
-    # Safety: if calibration is weird, force a usable range
+    # If calibration is weird, force a usable range
     if abs(val_extension - val_recta) < 10:
-        print("Calibration range too small, forcing defaults -40..120.")
-        val_recta = -40
-        val_extension = 120
+        print("Calibration range too small, forcing defaults 0 and 60.")
+        val_recta = 0
+        val_extension = 60
 
 
 # --- IMAGE LOADER ---
@@ -248,23 +236,21 @@ class RocketGame:
         self.last_button_state = 1
         self.root = root
 
-        # Cancel previous timers (if restarting the game) to avoid stacking
         for after_id in self.root.tk.call("after", "info"):
             try:
                 self.root.after_cancel(after_id)
             except Exception:
                 pass
-
+        # load all the images
         self.canvas = Canvas(root, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
-
         self.bg_img = load_image("space.png", (WIDTH, HEIGHT))
         self.rocket_img = load_image("rocket.png", ROCKET_SIZE)
         self.star_img = load_image("star.png", (50, 50))
         self.platform_img = load_image(
             "platform.png", (PLATFORM_WIDTH, PLATFORM_HEIGHT)
         )
-
+        #references of initial positions or scores of the objects
         self.canvas.create_image(0, 0, image=self.bg_img, anchor=NW)
         self.restart_count = 0
         self.Y_Ground = Y_REF_BOTTOM
@@ -325,6 +311,7 @@ class RocketGame:
         # Always schedule Arduino loop; it will early-return if no Arduino
         self.root.after(UPDATE_MS, self.update_from_arduino)
 
+    #spawn the platforms at random positions with random speeds
     def spawn_platforms(self):
         for p in self.platforms:
             self.canvas.delete(p["id"])
@@ -333,8 +320,10 @@ class RocketGame:
         bottom_y = self.Y_Ground
 
         for i in range(1, PLATFORM_COUNT):
+            # position
             platform_top_y = bottom_y - (i * JUMP_HEIGHT) - 30
             x = randint(0, WIDTH - PLATFORM_WIDTH)
+            # speed and direction
             speed_boost = 1 + (self.restart_count * 0.1)
             speed = randint(
                 int(PLATFORM_MIN_SPEED * 10), int(PLATFORM_MAX_SPEED * 10)
@@ -363,7 +352,8 @@ class RocketGame:
 
         x_star = WIDTH // 2 - 25
         self.canvas.coords(self.star_item, x_star, Y_REF_TOP)
-
+    
+    # updating the platforms positions
     def update_platforms(self):
         for p in self.platforms:
             if p["speed"] == 0:
@@ -384,7 +374,9 @@ class RocketGame:
                 p["x"] + p["w"],
                 y_adjusted + p["h"],
             )
-
+    
+    #in case that the arduino is not connected, the keyboard can be used to move the rocket. 
+    # Can be removed if not needed.
     def keyboard_move(self, event):
         if self.game_over or self.is_jumping:
             return
@@ -394,7 +386,8 @@ class RocketGame:
         elif event.keysym == "Right":
             self.rocket_x = min(WIDTH - self.rocket_w, self.rocket_x + step)
         self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
-
+    
+    #check if the rocket is aligned with the platform to jump into
     def check_platform_alignment(self, platform):
         rocket_left = self.rocket_x
         rocket_right = self.rocket_x + self.rocket_w
@@ -404,7 +397,8 @@ class RocketGame:
             rocket_right > platform_left + 15
             and rocket_left < platform_right - 15
         )
-
+    
+    # attempt to jump when the extension threshold is crossed
     def attempt_jump(self):
         if self.is_jumping or self.game_over:
             return
@@ -415,12 +409,13 @@ class RocketGame:
         self.jump_cooldown = current_time
 
         next_index = self.current_platform_index + 1
-
+        # alignment with next platform
         if next_index < PLATFORM_COUNT:
             next_p = self.platforms[next_index - 1]
             if not self.check_platform_alignment(next_p):
                 self.handle_failed_aim()
                 return
+        # alignment with final goal
         elif next_index == PLATFORM_COUNT:
             star_x, star_y = self.canvas.coords(self.star_item)
             star_w, star_h = (50, 50)
@@ -435,22 +430,23 @@ class RocketGame:
         self.is_jumping = True
         self.current_platform_index = next_index
 
+    # ascending the rocket during the jump
     def ascend(self):
         if not self.is_jumping:
             return
-
+        # calculate target landing position
         target_index = self.current_platform_index
         Y_Ground = self.Y_Ground
         target_y_landing = Y_Ground - target_index * JUMP_HEIGHT
         landing_y_top_of_rocket = target_y_landing - ROCKET_SIZE[1]
 
         self.rocket_y -= JUMP_SPEED
-
+        # check for landing
         if self.rocket_y <= landing_y_top_of_rocket:
             self.rocket_y = landing_y_top_of_rocket
             self.is_jumping = False
             landed = False
-
+            # check landing success
             if target_index < PLATFORM_COUNT:
                 target_platform = self.platforms[target_index - 1]
                 if self.check_platform_alignment(target_platform):
@@ -458,7 +454,7 @@ class RocketGame:
                     target_platform["speed"] = 0
             elif target_index == PLATFORM_COUNT:
                 landed = True
-
+            # update score when it is landed
             if landed:
                 self.current_score += 1
                 self.canvas.itemconfig(
@@ -475,7 +471,7 @@ class RocketGame:
 
         if self.is_jumping:
             self.canvas.coords(self.rocket_item, self.rocket_x, self.rocket_y)
-
+    # Arduino reading that first column is angle, second is button
     def update_from_arduino(self):
         """
         Use the same base logic as your working function:
@@ -513,30 +509,26 @@ class RocketGame:
             except ValueError:
                 return
 
-            # Button handling (like your other game)
+            # Button handling 
             if ButtonNumber == 0:
                 ButtonPress = 1
             elif ButtonNumber == 1:
                 ButtonPress = 0
 
-            # --- SPIKE FILTERING ---
+            # in case of spike, we don't take into account, only real values
 
-            # 1) Hard range clamp for physically impossible values
-            #    (your real range is about -40..120)
+            # range only for possible values
             if angle < -90 or angle > 180:
-                # print("Ignoring impossible angle:", angle)
                 return
 
-            # 2) Ignore sudden jumps from previous angle (> 45 degrees/frame)
+            # ignore sudden jumps from previous angle 
             if self.prev_raw_angle is not None:
                 if abs(angle - self.prev_raw_angle) > 45:
-                    # print("Spike detected, ignoring:", self.prev_raw_angle, "->", angle)
                     return
 
             self.prev_raw_angle = angle
 
-            # --- Map angle -> extension_pct [0,1] using calibration ---
-
+            # Map angle -> extension_pct [0,1] using calibration data
             cal_range = val_extension - val_recta
             if cal_range == 0:
                 extension_pct = 0.5
@@ -544,11 +536,7 @@ class RocketGame:
                 raw_pct = (angle - val_recta) / cal_range
                 extension_pct = max(0.0, min(1.0, raw_pct))
 
-            # Debug:
-            # print(f"angle: {angle:.2f}  ext_pct: {extension_pct:.2f}")
-
-            # --- Rising-edge jump trigger ---
-            JUMP_THRESHOLD = 0.8  # 80% of calibrated range
+            JUMP_THRESHOLD = 0.8  
 
             if (
                 self.prev_extension_pct < JUMP_THRESHOLD
@@ -561,7 +549,6 @@ class RocketGame:
             self.prev_extension_pct = extension_pct
 
         except Exception:
-            # Ignore serial errors, keep the loop alive
             return
 
     def update(self):
@@ -571,7 +558,8 @@ class RocketGame:
         self.update_platforms()
         if self.is_jumping:
             self.ascend()
-
+    
+    # display messages on screen for a short time if the player misses a platform
     def show_on_screen_message(self, text_to_show):
         if self.on_screen_message_id:
             self.canvas.delete(self.on_screen_message_id)
@@ -592,10 +580,12 @@ class RocketGame:
                 self.on_screen_message_id = None
 
         self.root.after(1000, clear_message)
-
+    
+    # handle failed aim or landing, reducing lives and checking for game over
     def handle_failed_aim(self):
         if self.is_jumping or self.game_over:
             return
+        # one live less
         self.lives -= 1
         self.show_on_screen_message("MISSED!\n One life less")
         self.canvas.itemconfig(self.lives_text, text=f"Lives: {self.lives}")
@@ -605,7 +595,7 @@ class RocketGame:
 
     def handle_failed_landing(self):
         self.handle_failed_aim()
-
+    # reset the level to initial state
     def reset_level(self):
         self.game_over = False
         self.is_jumping = False
@@ -632,7 +622,7 @@ class RocketGame:
     def exit_and_save(self):
         save_score_data(self.current_score)
         self.root.destroy()
-
+    # display game over menu with score and highscore
     def show_game_over_menu(self):
         global ButtonPress, extension_pct
         new_hs = save_score_data(self.current_score)
@@ -662,6 +652,7 @@ class RocketGame:
             font=("Arial", 16),
             fill="blue",
         )
+        # Buttons for play again or exit
         Button(
             win,
             text="PLAY AGAIN",
@@ -678,7 +669,7 @@ class RocketGame:
             font=("Arial", 14, "bold"),
             command=lambda: (win.destroy(), self.root.destroy()),
         ).place(x=210, y=230, width=120, height=40)
-
+        # Polling for button press from Arduino
         def poll_end_menu():
             global ButtonPress, extension_pct
             if ButtonPress == 1:
@@ -691,7 +682,7 @@ class RocketGame:
                 win.after(50, poll_end_menu)
 
         poll_end_menu()
-
+    # display level complete menu with score and highscore
     def show_end_menu(self):
         global ButtonPress, extension_pct
         new_hs = save_score_data(self.current_score)
@@ -751,7 +742,7 @@ class RocketGame:
 
         poll_end_menu()
 
-
+# --- START MENU ---
 def start_menu(root):
     canvas = Canvas(root, width=WIDTH, height=HEIGHT)
     canvas.pack()
@@ -772,7 +763,7 @@ def start_menu(root):
         font=("Arial", 20, "bold"),
         fill="yellow",
     )
-
+    # Instructions
     canvas.create_text(
         WIDTH // 2,
         350,
@@ -786,7 +777,7 @@ def start_menu(root):
         font=("Arial", 16),
         fill="white",
     )
-
+    # Back to launcher button if launched from there
     if len(sys.argv) >= 2:
         Button(
             canvas,
@@ -805,7 +796,7 @@ def start_menu(root):
         font=("Comic Sans MS", 24, "bold"),
         command=lambda: (canvas.destroy(), RocketGame(root)),
     ).place(x=WIDTH // 2 - 60, y=500)
-
+    # press play with the button on the arduino
     def check_button_press():
         global ButtonPress, last_button_state
 
@@ -832,7 +823,7 @@ def start_menu(root):
 
     check_button_press()
 
-
+# --- MAIN PROGRAM ---
 if __name__ == "__main__":
     root = Tk()
     root.title("Rocket Extension Game")
