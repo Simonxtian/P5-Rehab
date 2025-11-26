@@ -38,13 +38,13 @@ static constexpr float POT_OFFSET_RAD = -2.92f;   // align to your home
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 
 // ----------------- Position clamps (encoder space) -----------------
-static constexpr float POS_MIN_RAD = -1.2f;
-static constexpr float POS_MAX_RAD =  1.2f;
+static constexpr float POS_MIN_RAD = -1.0f;
+static constexpr float POS_MAX_RAD =  1.0f;
 
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 0.8f;        // LPF for force
+static constexpr float FORCE_EMA_ALPHA = 0.9f;        // LPF for force
 
 static constexpr float Omega_EMA_ALPHA = 0.9f;
 
@@ -67,9 +67,9 @@ static constexpr float INT_CLAMP = 150.0f;           // integral clamp (PWM)
 static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 
 // ----------------- Admittance -----------------
-static constexpr float Jv_INIT = 0.057296f;
-static constexpr float Bv_INIT = 0.16273f;
-static constexpr float Kv_INIT = 0.095493f;
+static constexpr float Jv_INIT = 0.014324f;
+static constexpr float Bv_INIT = 0.104607f;
+static constexpr float Kv_INIT = 0.047746f;
 static constexpr float W_ADM_MAX = 30.0f;
 static constexpr float DW_ADM_MAX = 1000.0f;
 
