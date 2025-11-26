@@ -294,19 +294,32 @@ class FishingGame:
 
     # ---------- MOVEMENT ----------
     def toggle_sweep(self):
-        if self.waiting_for_retraction: 
+        if self.waiting_for_retraction:
             return
 
+        # SI ESTABA MOVIÉNDOSE → DETENER TOTALMENTE
         if self.sweeping:
             self.sweeping = False
             self.stopped = True
-            # Evita que se reinicie solo si paramos con el botón
-            self.was_extended = False 
-        else:
-            # Solo resume si la cuerda está arriba
-            if self.rope_len <= 5:
-                self.sweeping = True
-                self.stopped = False
+            
+            # Marcamos que todavía NO se ha completado el ciclo
+            self.was_extended = False
+            
+            # Cuerda visible mínima
+            self.set_rope(20)
+            return
+
+        # SI ESTABA DETENIDO → SOLO REANUDA SI LA CUERDA ESTÁ COMPLETAMENTE RECOGIDA
+        if not self.was_extended and self.rope_len <= 5:
+            # NO reanudar: aún no hubo ciclo
+            return
+
+        # SI YA HUBO EXTENSIÓN + RETRACCIÓN → PERMITIR MOVER
+        if self.rope_len <= 5:
+            self.sweeping = True
+            self.stopped = False
+            self.was_extended = False
+            self.set_rope(0)
 
     def reset_round(self):
         self.start_time = time.time()
@@ -347,19 +360,24 @@ class FishingGame:
         self.canvas.coords(self.rope_item, tx, ty, tx, ty + self.rope_len)
 
     def set_rope(self, length):
+        # Actualizamos la longitud visual
         self.rope_len = max(0, min(ROPE_MAX_LEN, length))
 
-        # 1. Si la cuerda baja significativamente, marcamos que hubo intento de pesca
-        if self.rope_len > 20:
+        # --- LÓGICA DE DETECCIÓN DE MOVIMIENTO ---
+
+        # 1. Si la cuerda baja significativamente (> 30px), marcamos que hubo intento de pesca.
+        # Esto evita que se reanude solo por "ruido" o temblores del sensor.
+        if self.rope_len > 30:
             self.was_extended = True
 
-        # 2. Solo reanudar si la cuerda está arriba (<=5) Y si hubo intento previo (was_extended)
-        if self.rope_len <= 5 and not self.sweeping and not self.game_over:
+
+        if not self.sweeping and not self.game_over and self.rope_len < 10:
             if self.was_extended:
+                # ¡Ciclo completado! Reanudamos el barrido lateral
                 self.sweeping = True
                 self.stopped = False
-                self.was_extended = False # Resetear bandera
-
+                self.was_extended = False
+                self.rope_len = 0 # Aseguramos que se vea totalmente recogida
     # ---------- COLLISIONS ----------
     def check_hit(self):
         tip_x, tip_y = self.rod_tip()
@@ -409,7 +427,7 @@ class FishingGame:
                 s = raw.decode("utf-8", errors="ignore").strip()
                 split = s.split(",")
 
-                if len(split) >= 2:
+                if len(split) >= 1:
                     PotNumber = float(split[0])
                     Button = int(split[1])
                 else:
@@ -436,9 +454,16 @@ class FishingGame:
 
                 rope = int(norm * ROPE_MAX_LEN)
                 
-                # Solo actualizar cuerda si estamos parados
+                # Solo permitir bajar cuerda si el paciente realmente flexiona
                 if not self.sweeping:
-                    self.set_rope(rope)
+
+                    # Si el paciente baja la muñeca → marcar extensión válida
+                    if rope > 30:
+                        self.was_extended = True
+
+                    # Si ya hubo extensión → permitir que la retraiga a 0
+                    if self.was_extended:
+                        self.set_rope(rope)
 
             except:
                 pass
