@@ -26,7 +26,8 @@ public:
     unsigned long now = micros();
     const unsigned long dt_us_target = (unsigned long)(1e6f / LOOP_HZ);
     if ((now - lastLoopUs_) < dt_us_target) return;
-    float dt = (now - lastLoopUs_) * 1e-6f; lastLoopUs_ = now;
+    float dt = (now - lastLoopUs_) * 1e-6f;
+    lastLoopUs_ = now;
 
     // --- Manual override for bring-up ---
     if (overrideActive_) {
@@ -36,20 +37,19 @@ public:
         lastLogMs_ = millis();
         int adc = analogRead(PIN_POT);
         float theta_pot_rad = adcToThetaRad(adc);
-        //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
         float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
         
         float theta_enc = enc_.thetaRad();
         enc_.updateSpeed();
         float w_meas = enc_.wRadPerSec();
-        Serial.print(theta_pot_deg);           Serial.print(',');
-        Serial.print(theta_enc, 6);        Serial.print(',');
-        Serial.print(0.0f, 6);             Serial.print(',');
-        Serial.print(w_meas, 6);           Serial.print(',');
-        Serial.print(overridePWM_, 1);     Serial.print(',');
-        Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-        Serial.print(fs_.tauExt(),5);      Serial.print(',');
-        Serial.println(0.0f,5);
+        Serial.print(theta_pot_rad);           Serial.print(',');
+        Serial.print(theta_enc, 6);            Serial.print(',');
+        Serial.print(0.0f, 6);                 Serial.print(',');
+        Serial.print(w_meas, 6);               Serial.print(',');
+        Serial.print(overridePWM_, 1);         Serial.print(',');
+        Serial.print(fs_.forceFiltered(),4);   Serial.print(',');
+        Serial.print(fs_.tauExt(),5);          Serial.print(',');
+        Serial.println(0.0f,5);                // accel = 0 in override
       }
       return;
     }
@@ -59,6 +59,15 @@ public:
     enc_.updateSpeed();
     float w_meas = enc_.wRadPerSec();
 
+    // --- acceleration estimate ---
+    if (haveLastW_ && dt > 0.0f) {
+      aMeas_ = (w_meas - lastWMeas_) / dt;   // rad/s^2
+    } else {
+      aMeas_ = 0.0f;
+    }
+    lastWMeas_ = w_meas;
+    haveLastW_ = true;
+
     // force/torque & admittance
     float tau_ext = fs_.updateAndGetTau();
     adm_.update(theta_enc, tau_ext);
@@ -67,12 +76,11 @@ public:
     float w_total = (adm_.enabled() ? (wUser_ + adm_.wAdm()) : wUser_);
 
     // position limits
-    if ((theta_enc >= POS_MAX_RAD && w_total > 0.0f) ||
-        (theta_enc <= POS_MIN_RAD && w_total < 0.0f)) {
+    if ((theta_enc >= 1.00f && w_total > 0.0f) ||
+        (theta_enc <= -1.00f && w_total < 0.0f)) {
       w_total = 0.0f;
     }
 
-    // inner PID -> PWM
     float u_pwm = pid_.step(w_total, w_meas, dt);
     motor_.writePWM(u_pwm);
 
@@ -81,18 +89,19 @@ public:
       lastLogMs_ = millis();
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
-      //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg);           Serial.print(',');
-      Serial.print(theta_enc, 6);        Serial.print(',');
-      Serial.print(wUser_, 6);           Serial.print(',');
-      Serial.print(w_meas, 6);           Serial.print(',');
-      Serial.print(u_pwm, 1);            Serial.print(',');
-      Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      Serial.print(tau_ext,5);           Serial.print(',');
-      Serial.println(adm_.wAdm(),5);
+      Serial.print(theta_pot_rad);         Serial.print(',');
+      Serial.print(theta_enc, 6);          Serial.print(',');
+      Serial.print(wUser_, 6);             Serial.print(',');
+      Serial.print(w_meas, 6);             Serial.print(',');
+      Serial.print(u_pwm, 1);              Serial.print(',');
+      Serial.print(fs_.forceFiltered(),4); Serial.print(',');
+      Serial.print(tau_ext,5);             Serial.print(',');
+      Serial.print(adm_.wAdm(),5);         Serial.print(',');
+      Serial.println(aMeas_,5);            // <--- accel
     }
   }
+
 
   // ---- API used by SerialParser ----
   void setUserVel(float w){ wUser_ = w; }
@@ -125,4 +134,10 @@ private:
   bool overrideActive_{false};
   float overridePWM_{0.0f};
   uint32_t overrideEndMs_{0};
+
+  // --- acceleration estimation state ---
+  float lastWMeas_{0.0f};   // previous measured velocity [rad/s]
+  bool  haveLastW_{false};  // flag to know if lastWMeas_ is valid
+  float aMeas_{0.0f};       // current estimated acceleration [rad/s^2]
 };
+
