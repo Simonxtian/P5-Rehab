@@ -178,25 +178,17 @@ highscore = load_patient_data()
 # --- CALIBRATION LOADING ---
 def load_calibration():
     global val_flexion, val_extension
-    val_flexion = 0
-    val_extension = 1023
     try:
         game_dir = os.path.dirname(__file__)
         main_dir = os.path.dirname(game_dir)
         file_path = os.path.join(main_dir, "WristRehab", "calibration_data.json")
-        print(f"Looking for calibration at: {file_path}")
         with open(file_path, "r") as f:
             data = json.load(f)
-            val_flexion = data.get("flexion", 0)
-            val_extension = data.get("extension", 1023)
-            print(
-                f"Calibration Loaded: Flexion={val_flexion}, Extension={val_extension}"
-            )
-    except FileNotFoundError:
-        print(f"ERROR: File not found at: {file_path}")
-        print("Using defaults.")
-    except Exception as e:
-        print(f"Error loading calibration: {e}")
+            val_flexion = data.get("flexion", -45)
+            val_extension = data.get("extension", 45)
+    except Exception:
+        val_flexion = -45
+        val_extension = 45
 
 
 # --- Image loading ---
@@ -535,28 +527,19 @@ def start_menu():
         back_button.place(x=10, y=10)
         menu_widgets.append(back_button)
 
-    def check_button_press_start():
-        global ButtonPress
+    def check_auto():
+        global ButtonPress, normalized
 
-        if normalized < 1 / 6:
-            speed_slider.set(1)
-        elif normalized < 2 / 6:
-            speed_slider.set(2)
-        elif normalized < 3 / 6:
-            speed_slider.set(3)
-        elif normalized < 4 / 6:
-            speed_slider.set(4)
-        elif normalized < 5 / 6:
-            speed_slider.set(5)
-        elif normalized <= 6 / 6:
-            speed_slider.set(6)
+
+        speed_slider.set(max(1, min(6, int(normalized * 6) + 1)))
+
 
         if ButtonPress == 1:
             start_game(speed_slider.get())
         else:
-            canvas.after(50, check_button_press_start)
+            canvas.after(50, check_auto)
 
-    check_button_press_start()
+    check_auto()
 
     # Start Arduino polling loop ONCE from here
     canvas.after(50, update_from_arduino)
@@ -574,55 +557,60 @@ def start_game(selected_speed):
 
 
 
-
 def update_from_arduino():
-    global ButtonPress, normalized, Previous, raw, angle, val_flexion, val_extension
-    
+    global ButtonPress, normalized, angle, val_flexion, val_extension
+
+
     if arduino:
-        latest = None
         try:
-            #print("Reading from Arduino...")
-            raw = arduino.readline()
-                #print(f"Raw data: {raw}")
-            s = raw.decode('utf-8', errors='ignore').strip()
-            split = s.split(",")
-                #print(split)
-            try:
-                if len(split) >= 4:
-                    PotNumber = float(split[0])
-                    ButtonNumber = int(split[1])
-                else:
-                    PotNumber = float(s)
-                    ButtonNumber = 0 
-                print(f"Potentiometer: {PotNumber}, Button: {ButtonNumber}")
-                latest = PotNumber
+            raw = arduino.readline().decode('utf-8', errors='ignore').strip()
+            if not raw:
+                root.after(50, update_from_arduino)
+                return
 
-                if ButtonNumber == 0:
-                    ButtonPress = 1
-                elif ButtonNumber == 1:
-                    ButtonPress = 0
-            except ValueError:
-                print("Woopsie")
 
-            if latest is not None:
-                angle = latest
-                cal_range = val_extension - val_flexion
-                if cal_range == 0:
-                    normalized = 0.5
-                else:
-                    cal_min = min(val_flexion, val_extension)
-                    cal_max = max(val_flexion, val_extension)
-                    clamped_angle = max(cal_min, min(cal_max, angle))
-                    normalized = (clamped_angle - val_flexion) / cal_range
-                top_limit = 0
-                bottom_limit = HEIGHT - 120
-                y_pos = bottom_limit - normalized * (bottom_limit - top_limit)
-                y_pos = max(top_limit, min(bottom_limit, y_pos))
-                if bar_obj:
-                    bar_obj.set_position(int(y_pos))
+            split = raw.split(',')
+
+
+            if len(split) >= 2:
+                angle = float(split[0]) # grados reales, positivos o negativos
+                btn = int(split[1]) # botón (0=presionado, 1=no presionado)
+            else:
+                angle = float(raw)
+                btn = 1 # no presionado por defecto
+
+
+            # --- BOTÓN CORREGIDO según tu lógica ---
+            ButtonPress = 1 if btn == 0 else 0
+
+
+            # --- Normalización usando calibración personalizada ---
+            cal_min = min(val_flexion, val_extension)
+            cal_max = max(val_flexion, val_extension)
+
+
+            clamped = max(cal_min, min(cal_max, angle))
+            normalized = (clamped - cal_min) / (cal_max - cal_min)
+
+
+            # convertir normalized a posición vertical
+            top_limit = 0
+            bot_limit = HEIGHT - 120
+            y_pos = bot_limit - normalized * (bot_limit - top_limit)
+            y_pos = max(top_limit, min(bot_limit, y_pos))
+
+
+            if bar_obj:
+                bar_obj.set_position(int(y_pos))
+
+
         except Exception:
             pass
+
+
     root.after(50, update_from_arduino)
+
+
 
 
 def main():
