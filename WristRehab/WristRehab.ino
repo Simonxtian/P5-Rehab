@@ -9,7 +9,6 @@ SerialParser parser(ctrl);
 
 void setup() {
   Serial.begin(460800);  // game stream
-  Serial1.begin(115200); // full telemetry
   ctrl.begin();
   parser.begin();
   Serial.println(F("# wrist controller ready"));
@@ -17,6 +16,6 @@ void setup() {
 }
 
 void loop() {
-  parser.poll();   //serial commands
-  ctrl.update();   // control loops
+  parser.poll();   // read any serial commands
+  ctrl.update();   // run control loops
 }

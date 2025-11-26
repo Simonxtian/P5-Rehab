@@ -1,0 +1,21 @@
+{
+  "l": {
+    "name": "l",
+    "weight": 70.0,
+    "difficulty": 0.6,
+    "created": "2025-11-26T19:18:56.528648",
+    "sessions": [
+      {
+        "timestamp": "2025-11-26T19:19:10.158989",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      }
+    ]
+  }
+}
