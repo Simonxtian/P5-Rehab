@@ -5,7 +5,7 @@
 // -------------------- Pins --------------------
 static constexpr int PIN_IN1 = 10;   // H-bridge PWM
 static constexpr int PIN_IN2 = 9;    // H-bridge PWM
-static constexpr int PIN_ENC_A = 1;  // Leonardo supports 0,1,2,3,7
+static constexpr int PIN_ENC_A = 3;  // Leonardo supports 0,1,2,3,7
 static constexpr int PIN_ENC_B = 2;
 static constexpr int PIN_POT   = A0;
 static constexpr int HX_DOUT   = 5;
@@ -36,7 +36,7 @@ static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =  -4.1500f;   // align to your home
+static constexpr float POT_OFFSET_RAD =  -4.0500f;   // align to your home
 
 // ----------------- Gravity comp -----------------
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
@@ -71,7 +71,7 @@ static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 // ----------------- Admittance -----------------
 static constexpr float Jv_INIT = 0.28648f;
 static constexpr float Bv_INIT = 0.73969f;
-static constexpr float Kv_INIT = 0.0f;
+static constexpr float Kv_INIT = 0.47746f;
 static constexpr float W_ADM_MAX = 30.0f;
 static constexpr float DW_ADM_MAX = 1000.0f;
 
