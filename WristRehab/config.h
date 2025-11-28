@@ -46,7 +46,7 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force
+static constexpr float FORCE_EMA_ALPHA = 0.8f;        // LPF for force
 
 static constexpr float Omega_EMA_ALPHA = 1.0f;
 
