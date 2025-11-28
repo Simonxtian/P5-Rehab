@@ -71,7 +71,10 @@ static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 // ----------------- Admittance -----------------
 static constexpr float Jv_INIT = 0.28648f;
 static constexpr float Bv_INIT = 0.73969f;
+
 static constexpr float Kv_INIT = 0.47746f;
+//static constexpr float Kv_INIT = 0.0f;
+
 static constexpr float W_ADM_MAX = 30.0f;
 static constexpr float DW_ADM_MAX = 1000.0f;
 

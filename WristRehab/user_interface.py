@@ -14,7 +14,9 @@ import math
 from datetime import datetime
 
 # --- CONFIGURATION ---
-DEFAULT_BAUD = 115200
+#DEFAULT_BAUD = 115200 # Original baud rate
+DEFAULT_BAUD = 460800 #Correcrted baud rate
+
 DEFAULT_PORT = None 
 PATIENT_DB_FILE = "patients_db.json"
 CALIBRATION_FILE = r"WristRehab\calibration_data.json"

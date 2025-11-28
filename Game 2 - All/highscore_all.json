@@ -15,5 +15,10 @@
     "name": "Alaa",
     "highscore": 0,
     "session_highscore": 0
+  },
+  "viktor": {
+    "name": "Viktor",
+    "highscore": 8,
+    "session_highscore": 0
   }
 }

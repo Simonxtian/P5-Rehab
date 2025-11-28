@@ -19,7 +19,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import math  # <---- added for degree conversion
 
-DEFAULT_BAUD = 115200
+#DEFAULT_BAUD = 115200 # Original baud rate
+DEFAULT_BAUD = 460800 #Correcrted baud rate
+
 DEFAULT_PORT = None  # set like 'COM6' or '/dev/ttyACM0' if you wish
 PATIENT_DB_FILE = "patients_db.json"
 
