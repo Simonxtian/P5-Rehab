@@ -61,10 +61,10 @@ public:
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg -90);   // angle in degrees
+      Serial.print(theta_pot_deg);   // angle in degrees
       Serial.print(',');
       Serial.println(digitalRead(11));  // button state: 0 or 1
-      // Serial.print(theta_pot_rad);           Serial.print(',');
+      // Serial.println(theta_pot_rad);           //Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
       // Serial.print(wUser_, 6);           Serial.print(',');

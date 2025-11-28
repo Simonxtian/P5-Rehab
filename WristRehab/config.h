@@ -36,7 +36,7 @@ static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =  -4.1600f;   // align to your home
+static constexpr float POT_OFFSET_RAD =  -1.99f;   // align to your home
 
 // ----------------- Gravity comp -----------------
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
@@ -46,7 +46,7 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 0.8f;        // LPF for force
+static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force
 
 static constexpr float Omega_EMA_ALPHA = 1.0f;
 
