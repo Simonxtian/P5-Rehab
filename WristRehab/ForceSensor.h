@@ -15,7 +15,7 @@ public:
     tare(20);
     forceEma_ = 0.0f;
     tauExt_ = 0.0f;
-    totalMassKg_ = 0.00f;  
+    totalMassKg_ = 0.072f+0.420f;  
   }
   void tare(uint8_t times=20){ scale_.tare(times); }
   void setTotalMass(float mass_kg){ totalMassKg_ = mass_kg; }
@@ -23,12 +23,13 @@ public:
   // Update using current pot angle for gravity comp; returns tau_ext
   float updateAndGetTau(){
     if (!scale_.is_ready()) return tauExt_;
-    float forceRawN = scale_.get_units(1);  // already Newtons
+    float F_meas = scale_.get_units(1);  // N, relative to tare
     int adc = analogRead(PIN_POT);
-    float theta_pot = adcToThetaRad(adc);
-    float gravN = totalMassKg_ * 9.81f * sinf(theta_pot);
-    float fExt = forceRawN - gravN;              // subtract gravity
-    forceEma_ = emaStep(forceEma_, fExt, FORCE_EMA_ALPHA);
+    float theta = adcToThetaRad(adc);
+    // Gravity change relative to tare
+    float gravDeltaN = totalMassKg_ * 9.82f * (sinf(theta) - sinf(1.57f));
+    float F_ext = F_meas - gravDeltaN;
+    forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
     tauExt_ = TORQUE_SIGN * forceEma_ * ARM_LENGTH_M;
     return tauExt_;
   }
@@ -40,5 +41,5 @@ private:
   HX711 scale_;
   float forceEma_{0.0f};
   float tauExt_{0.0f};
-  float totalMassKg_{0.42f};  // Dynamic mass for gravity compensation
+  float totalMassKg_{0.072f+0.420f};  // Dynamic mass for gravity compensation
 };

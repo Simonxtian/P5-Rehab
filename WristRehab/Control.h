@@ -35,20 +35,70 @@ public:
     enc_.updateSpeed();
     float w_meas = enc_.wRadPerSec();
 
-    // force/torque & admittance
+
+  // // ===== 3) Admittance timing + sine-torque excitation =====
+  // // outer admittance loop at ~200 Hz (5 ms)
+  // static unsigned long lastAdmUs = 0;
+  // static float t_sec  = 0.0f;        // time for sine [s]
+  // static float tau_ext = 0.0f;       // last torque used (for logging)
+
+  // const unsigned long ADM_PERIOD_US = 10000;   // 200 Hz
+  // const float F_TEST = 1.0f;                  // test frequency [Hz]
+  // const float A_TAU  = 4.0f;                // torque amplitude [Nm]
+
+  // if ((now - lastAdmUs) >= ADM_PERIOD_US) {
+  //   unsigned long dt_adm_us = now - lastAdmUs;
+  //   lastAdmUs = now;
+
+  //   t_sec += dt_adm_us * 1e-6f;   // advance time in seconds
+
+  //   // --- TEST INPUT: pure sine torque instead of load cell ---
+  //   tau_ext = A_TAU * sinf(2.0f * PI * F_TEST * t_sec);
+
+  //   // If you want real sensor + test later:
+  //   // float tau_meas = fs_.updateAndGetTau();
+  //   // tau_ext = tau_meas + A_TAU * sinf(...);
+
+  //   adm_.update(theta_enc, tau_ext);
+  // }
+
+
+
+
+    // // force/torque & admittance
     float tau_ext = fs_.updateAndGetTau();
     adm_.update(theta_enc, tau_ext);
 
-    // compose command
+    // // compose command
     float w_total = (adm_.enabled() ? (wUser_ + adm_.wAdm()) : wUser_);
 
-    // position limits
-    if ((theta_enc >= 1.00f && w_total > 0.0f) ||
-        (theta_enc <= -1.00f && w_total < 0.0f)) {
+
+//  // ===== 3) velocity sine command for test =====
+//     static float t_sec = 0.0f;
+//     t_sec += dt;
+
+
+
+//     const float f_test = 0.05f;          // [Hz] example near your bandwidth
+//     const float omega  = 2.0f * PI * f_test;
+
+//     const float W_amp  = 0.8;   // stays within ROM by design
+
+//     float w_cmd_sine = W_amp * sinf(omega * t_sec);
+
+//     // For pure velocity-loop test, ignore admittance:
+//     float w_total = w_cmd_sine;
+
+        // position limits
+    if ((theta_enc >= 0.80f && w_total > 0.0f) ||
+        (theta_enc <= -0.80f && w_total < 0.0f)) {
       w_total = 0.0f;
     }
 
+
     float u_pwm = pid_.step(w_total, w_meas, dt);
+
+    
 
   
     motor_.writePWM(u_pwm);
@@ -61,17 +111,18 @@ public:
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg -90);   // angle in degrees
+      Serial.print(theta_pot_deg-90);   // angle in degrees
       Serial.print(',');
-      Serial.println(digitalRead(11));  // button state: 0 or 1
+      Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
       // Serial.print(theta_pot_rad);           Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
+      // Serial.print(w_total, 6);          Serial.print(',');
       // Serial.print(wUser_, 6);           Serial.print(',');
       // Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      // Serial.print(tau_ext,5);           Serial.print(',');
+      Serial.println(tau_ext,5);         //  Serial.print(',');
       // Serial.println(adm_.wAdm(),5);
     }
   }
