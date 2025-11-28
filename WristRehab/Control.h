@@ -60,7 +60,7 @@ public:
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
-      float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
+      float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG);
       Serial.println(theta_pot_deg);   // angle in degrees
       // Serial.print(',');
       // Serial.println(digitalRead(11));  // button state: 0 or 1
