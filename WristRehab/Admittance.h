@@ -38,11 +38,23 @@ public:
     float dt = dt_us * 1e-6f;
 
     float spring = params_.Kv * (theta_enc - thetaEq_);
+    
+    // Improved discretization with better numerical stability
     float denom  = params_.Jv + params_.Bv * dt; 
     if (denom < 1e-6f) denom = 1e-6f;
     float numer  = params_.Jv * wAdm_ + (tau_ext - spring) * dt;
     float wNext  = numer / denom;
-    wAdm_ = wNext; // optionally saturate here
+    
+    // Add saturation and rate limiting for stability
+    wNext = saturate(wNext, -W_ADM_MAX, W_ADM_MAX);
+    
+    // Rate limiting to prevent sudden jumps
+    float dw = (wNext - wAdm_) / dt;
+    if (fabs(dw) > DW_ADM_MAX) {
+      wNext = wAdm_ + copysignf(DW_ADM_MAX * dt, dw);
+    }
+    
+    wAdm_ = wNext;
 
     // --- timing stats: accumulate dt of *actual* updates ---
     accDtUs_ += dt_us;

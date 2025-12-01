@@ -14,8 +14,13 @@ public:
   float step(float w_cmd, float w_meas, float dt){
     float e = w_cmd - w_meas;
     if (fabs(e) < 0.15f) e = 0.0f; // deadband
-    iTerm_ += Ki_ * e * dt;
-    iTerm_ = saturate(iTerm_, -INT_CLAMP, INT_CLAMP);
+    
+    // Only integrate if not saturated (anti-windup)
+    float u_unsat = Kp_*e + iTerm_;
+    if (fabs(u_unsat) < PWM_MAX - 10.0f) {
+      iTerm_ += Ki_ * e * dt;
+      iTerm_ = saturate(iTerm_, -INT_CLAMP, INT_CLAMP);
+    }
 
     float raw_d = (e - ePrev_) / dt;
     float alpha_d = dt / (D_TAU_VEL + dt);

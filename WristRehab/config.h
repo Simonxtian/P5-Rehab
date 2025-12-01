@@ -46,7 +46,7 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 0.9f;        // LPF for force
+static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force (lower = more filtering)
 
 static constexpr float Omega_EMA_ALPHA = 1.0f;
 
@@ -65,17 +65,17 @@ static constexpr uint8_t PWM_LIMIT = 255;            // soft limit
 static constexpr float KP_INIT = 29.2825f;
 static constexpr float KI_INIT = 1416.7f;
 static constexpr float KD_INIT = 0.0140f;
-static constexpr float INT_CLAMP = 150.0f;           // integral clamp (PWM)
+static constexpr float INT_CLAMP = 50.0f;           // integral clamp (PWM)
 static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 
 // ----------------- Admittance -----------------
-static constexpr float Jv_INIT = 0.00179f;
-static constexpr float Bv_INIT = 0.18492f;
+static constexpr float Jv_INIT = 0.00358f;
+static constexpr float Bv_INIT = 0.13589f;
 static constexpr float Kv_INIT = 0.0f;
 //static constexpr float Kv_INIT = 0.0f;
 
-static constexpr float W_ADM_MAX = 30.0f;
-static constexpr float DW_ADM_MAX = 1000.0f;
+static constexpr float W_ADM_MAX = 15.0f;   // Reduced from 30 for stability
+static constexpr float DW_ADM_MAX = 500.0f;  // Reduced from 1000 for smoother response
 
 
 

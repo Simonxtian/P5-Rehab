@@ -25,6 +25,13 @@ void SerialParser::poll(){
     Serial.print(mass, 4);
     Serial.println(F(" kg"));
 
+  } else if (token.equalsIgnoreCase("tareangle")){
+    float theta_rad = Serial.parseFloat();
+    ctrl_.setTareAngle(theta_rad);
+    Serial.print(F("# tare angle set to "));
+    Serial.print(theta_rad, 4);
+    Serial.println(F(" rad"));
+
   } else if (token.equalsIgnoreCase("adm")){
     String rest = Serial.readStringUntil('\n');
     rest.trim();

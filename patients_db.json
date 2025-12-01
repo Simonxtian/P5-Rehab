@@ -1,7 +1,7 @@
 {
   "alaa": {
     "name": "Alaa",
-    "weight": 70.0,
+    "weight": 60.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:04:58.382271",
     "sessions": [
@@ -154,6 +154,171 @@
         "session_highscore_flex": 4,
         "session_highscore_all": 21,
         "session_highscore_ext": 27
+      },
+      {
+        "timestamp": "2025-12-01T16:09:25.707333",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.02197,
+        "mvc_tau_ref": 0.05,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:16:26.279089",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:16:53.842664",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.4,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:17:14.972987",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.1,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:17:44.377517",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.4,
+        "flexion_rom": 53.09,
+        "extension_rom": -55.38,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:19:46.864590",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.5,
+        "flexion_rom": 41.21,
+        "extension_rom": -55.12,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 17,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:36:05.540997",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.09558,
+        "mvc_tau_ref": 0.057347999999999996,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:48:27.441059",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.00045,
+        "mvc_tau_ref": 0.05,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:48:48.243487",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.18156,
+        "mvc_tau_ref": 0.10893599999999999,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:49:14.362951",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.49827,
+        "mvc_tau_ref": 0.298962,
+        "flexion_rom": 42.01,
+        "extension_rom": -47.2,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 22,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T16:53:48.625621",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.00017,
+        "mvc_tau_ref": 0.05,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T17:28:12.358477",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.00022,
+        "mvc_tau_ref": 0.05,
+        "flexion_rom": 52.03,
+        "extension_rom": -30.58,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 18
+      },
+      {
+        "timestamp": "2025-12-01T17:31:36.035168",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "flexion_rom": 41.21,
+        "extension_rom": -23.19,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 10,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T17:34:31.979675",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.5,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-01T17:35:15.039141",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.0048,
+        "mvc_tau_ref": 0.05,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
       }
     ],
     "highscore": 0

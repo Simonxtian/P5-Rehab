@@ -162,6 +162,7 @@ public:
   void admHoldEq(){ adm_.holdEq(enc_.thetaRad()); }
   void tareScale(){ fs_.tare(); }
   void setTotalMass(float mass_kg){ fs_.setTotalMass(mass_kg); }
+  void setTareAngle(float theta_rad){ fs_.setTareAngle(theta_rad); }
 
   // Query whether admittance control is currently enabled.  This exposes
   // the state of the underlying Admittance object for use by

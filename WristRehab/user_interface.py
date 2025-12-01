@@ -158,6 +158,7 @@ class RehabGUI:
         self.last_J = None
         self.last_B = None
         self.last_K = None
+        self.initial_theta_rad = None  # Store initial angle for load cell calibration
         
         self.pages = {}
         self.current_page = None
@@ -405,9 +406,15 @@ class RehabGUI:
             self.session_file = open(f"session_{ts}.csv", "w", newline="")
             self.csv_writer = csv.writer(self.session_file)
             self.csv_writer.writerow(["timestamp"] + COLS)
-            time.sleep(0.5)
+            
+            # Wait for Arduino to be ready and ensure admittance is disabled
+            time.sleep(1.0)  # Longer delay to ensure serial is ready and auto-calibration completes
             self._send("adm off")
+            time.sleep(0.2)
             self._send("w 0")
+            time.sleep(0.2)
+            self._log("# Initialization: Admittance disabled, velocity=0")
+            self._log("# Note: Arduino auto-calibrated load cell at startup")
         else:
             self.stop_event.set()
             self.connected = False
@@ -463,16 +470,70 @@ class RehabGUI:
         self.txt.insert("end", msg + "\n")
         self.txt.see("end")
     
+    def _auto_calibrate_load_cell(self):
+        """Automatically calibrate load cell using initial potentiometer position."""
+        self._log("# Auto-calibrating load cell...")
+        
+        # Wait a moment for data to start flowing
+        time.sleep(0.3)
+        
+        # Capture initial angle from potentiometer
+        angle_samples = []
+        timeout = time.time() + 2.0  # 2 second timeout
+        
+        while len(angle_samples) < 10 and time.time() < timeout:
+            self.root.update()
+            try:
+                line = self.raw_queue.get(timeout=0.1)
+                self._handle_line(line)
+                parts = line.split(',')
+                if len(parts) >= 1:
+                    angle_deg = float(parts[0])
+                    angle_samples.append(angle_deg)
+            except:
+                pass
+        
+        if angle_samples:
+            # Average the samples and convert to radians
+            avg_angle_deg = sum(angle_samples) / len(angle_samples)
+            # Convert from degrees (relative to -90 offset) to absolute radians
+            self.initial_theta_rad = (avg_angle_deg + 90.0) * (3.14159 / 180.0)
+            
+            self._log(f"# Initial angle: {avg_angle_deg:.2f}° ({self.initial_theta_rad:.3f} rad)")
+            
+            # Tare the load cell at this position
+            self._send("tare")
+            time.sleep(0.3)
+            
+            # Send the tare angle to Arduino for gravity compensation
+            self._send(f"tareangle {self.initial_theta_rad:.6f}")
+            time.sleep(0.2)
+            
+            self._log(f"# Load cell calibrated at starting position")
+        else:
+            self._log("# WARNING: Could not capture initial angle, using default")
+            self.initial_theta_rad = 1.54  # Default fallback
+    
     # setting the mass based on patient weight
     def on_set_mass(self):
-        if not self.current_patient: return
+        if not self.connected:
+            messagebox.showerror("Error", "Connect to device first")
+            return
+        if not self.current_patient:
+            messagebox.showerror("Error", "Load a patient first")
+            return
         try:
             w = float(self.therapy_weight_var.get())
             mass = 0.006 * w
             self.patient_db.update_patient(self.current_patient_id, weight=w)
             self._send(f"totalmass {mass:.4f}")
-            self._log(f"# Mass set: {mass:.4f}")
-        except: messagebox.showerror("Error", "Invalid weight")
+            time.sleep(0.1)  # Give Arduino time to process
+            self._log(f"# Mass set: {mass:.4f} kg (from weight: {w} kg)")
+            messagebox.showinfo("Success", f"Mass set to {mass:.4f} kg")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid weight value")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set mass: {e}")
     # running the MVC test and calculating parameters
     def on_run_mvc(self):
         if not self.current_patient or not self.connected:
@@ -510,8 +571,8 @@ class RehabGUI:
             self._log(f"# WARNING: tau_ref {tau_ref:.2f} below minimum. Using {MIN_TAU_REF}")
             tau_ref = MIN_TAU_REF
         
-        J = tau_ref / 27.9 
-        K = tau_ref / 1.0472
+        J = tau_ref / 15.0 
+        K = tau_ref / 0.1745
         B = 2 * 1.5 * math.sqrt(J * K)
         
         # Store these values for later use (e.g., removing spring)
