@@ -15,7 +15,7 @@ public:
     tare(20);
     forceEma_ = 0.0f;
     tauExt_ = 0.0f;
-    totalMassKg_ = 0.072f+0.420f;  
+    totalMassKg_ = 0.072f;  
   }
   void tare(uint8_t times=20){ scale_.tare(times); }
   void setTotalMass(float mass_kg){ totalMassKg_ = mass_kg; }
@@ -27,7 +27,7 @@ public:
     int adc = analogRead(PIN_POT);
     float theta = adcToThetaRad(adc);
     // Gravity change relative to tare
-    float gravDeltaN = totalMassKg_ * 9.82f * (sinf(theta) - sinf(1.57f));
+    float gravDeltaN = totalMassKg_ * 9.82f * (sinf(theta) - sinf(1.54f));
     float F_ext = F_meas - gravDeltaN;
     forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
     tauExt_ = TORQUE_SIGN * forceEma_ * ARM_LENGTH_M;
@@ -41,5 +41,5 @@ private:
   HX711 scale_;
   float forceEma_{0.0f};
   float tauExt_{0.0f};
-  float totalMassKg_{0.072f+0.420f};  // Dynamic mass for gravity compensation
+  float totalMassKg_{0.072f};  // Dynamic mass for gravity compensation
 };

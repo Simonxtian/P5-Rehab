@@ -13,6 +13,7 @@ void setup() {
   parser.begin();
   Serial.println(F("# wrist controller ready"));
   pinMode(11, INPUT_PULLUP);
+
 }
 
 void loop() {

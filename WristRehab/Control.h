@@ -36,15 +36,15 @@ public:
     float w_meas = enc_.wRadPerSec();
 
 
-  // // ===== 3) Admittance timing + sine-torque excitation =====
-  // // outer admittance loop at ~200 Hz (5 ms)
+  // ===== 3) Admittance timing + sine-torque excitation =====
+  // outer admittance loop at ~200 Hz (5 ms)
   // static unsigned long lastAdmUs = 0;
   // static float t_sec  = 0.0f;        // time for sine [s]
   // static float tau_ext = 0.0f;       // last torque used (for logging)
 
   // const unsigned long ADM_PERIOD_US = 10000;   // 200 Hz
-  // const float F_TEST = 1.0f;                  // test frequency [Hz]
-  // const float A_TAU  = 4.0f;                // torque amplitude [Nm]
+  // const float F_TEST = 0.10f;                  // test frequency [Hz]
+  // const float A_TAU  = 0.40f;                // torque amplitude [Nm]
 
   // if ((now - lastAdmUs) >= ADM_PERIOD_US) {
   //   unsigned long dt_adm_us = now - lastAdmUs;
@@ -65,7 +65,7 @@ public:
 
 
 
-    // // force/torque & admittance
+    // // // force/torque & admittance
     float tau_ext = fs_.updateAndGetTau();
     adm_.update(theta_enc, tau_ext);
 
@@ -90,8 +90,8 @@ public:
 //     float w_total = w_cmd_sine;
 
         // position limits
-    if ((theta_enc >= 0.80f && w_total > 0.0f) ||
-        (theta_enc <= -0.80f && w_total < 0.0f)) {
+    if ((theta_enc >= 1.0f && w_total > 0.0f) ||
+        (theta_enc <= -1.0f && w_total < 0.0f)) {
       w_total = 0.0f;
     }
 
@@ -103,6 +103,34 @@ public:
   
     motor_.writePWM(u_pwm);
 
+    // // --- Loop frequency logging (velocity + admittance) ---
+    // static unsigned long statsStartMs = millis();
+    // static unsigned long velAccUs     = 0;
+    // static uint32_t      velCount     = 0;
+
+    // // dt is in seconds; convert back to µs for stats
+    // velAccUs += (unsigned long)(dt * 1e6f);
+    // velCount++;
+
+    // unsigned long nowMs = millis();
+    // if (nowMs - statsStartMs >= 1000UL) {   // about once per second
+    //   float velHz = 0.0f;
+    //   if (velCount > 0 && velAccUs > 0) {
+    //     float avgDtUs = velAccUs / (float)velCount;
+    //     velHz = 1e6f / avgDtUs;
+    //   }
+
+    //   Serial.print(F("velLoop_Hz="));
+    //   Serial.print(velHz, 1);
+    //   Serial.print(F(", admLoop_Hz="));
+    //   Serial.println(adm_.loopHz(), 1);
+
+    //   velAccUs = 0;
+    //   velCount = 0;
+    //   statsStartMs = nowMs;
+    // }
+
+
 
     // --- Telemetry for game (minimal stream) ---
     if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
@@ -112,10 +140,10 @@ public:
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
       Serial.print(theta_pot_deg-90);   // angle in degrees
-      Serial.print(theta_pot_deg);   // angle in degrees
+      // Serial.print(theta_pot_deg);   // angle in degrees
       Serial.print(',');
       Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
-      // Serial.println(theta_pot_rad);           //Serial.print(',');
+      // Serial.print(theta_pot_rad);          Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
       // Serial.print(w_total, 6);          Serial.print(',');
@@ -123,7 +151,7 @@ public:
       // Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      Serial.println(tau_ext,5);         //  Serial.print(',');
+      Serial.println(tau_ext,5);          // Serial.print(',');
       // Serial.println(adm_.wAdm(),5);
     }
   }

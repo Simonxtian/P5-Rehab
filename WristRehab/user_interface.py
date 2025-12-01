@@ -26,8 +26,11 @@ GAME_1_PATH = r"Game 1 - Flexion\flexion_game.py"
 GAME_2_PATH = r"Game 2 - All\Flex_and_ext_game.py"
 GAME_3_PATH = r"Game 3 - Extension\extension.py"
 
-# Telemetry columns
-COLS = ["theta_pot","theta_enc","w_user","w_meas","u_pwm","force_filt","tau_ext","w_adm"]
+# Telemetry columns - Updated to match current Arduino output
+COLS = ["theta_pot","button_state","tau_ext"]
+
+# Safety threshold for minimum tau_ref (Nm)
+MIN_TAU_REF = 0.05  # Minimum torque reference for safety
 
 # CLASS 1: Serial Worker (Background Thread)
 class SerialWorker(threading.Thread):
@@ -151,6 +154,11 @@ class RehabGUI:
         self.cal_step = 0
         self.cal_data = {}
         
+        # Store MVC-calculated admittance parameters
+        self.last_J = None
+        self.last_B = None
+        self.last_K = None
+        
         self.pages = {}
         self.current_page = None
         
@@ -251,6 +259,7 @@ class RehabGUI:
         ttk.Label(params, text="Diff:").grid(row=0, column=2, padx=5)
         ttk.Entry(params, textvariable=self.therapy_diff_var, width=10).grid(row=0, column=3, padx=3)
         ttk.Button(params, text="Send Mass", command=self.on_set_mass).grid(row=0, column=6, padx=10)
+        ttk.Button(params, text="Remove Spring (K=0)", command=self.on_remove_spring).grid(row=0, column=7, padx=10)
         # maximum voluntary contraction (MVC) test controls
         mvc = ttk.LabelFrame(page, text="MVC Test (Start of Session)")
         mvc.grid(row=3, column=0, sticky="ew", pady=5)
@@ -444,7 +453,8 @@ class RehabGUI:
                 if len(parts) == len(COLS):
                     vals = [float(x) for x in parts]
                     if hasattr(self, 'lbl_tau'):
-                        self.lbl_tau.config(text=f"tau: {vals[6]:.3f}")
+                        # tau_ext is now at index 2 (theta_pot, button_state, tau_ext)
+                        self.lbl_tau.config(text=f"tau: {vals[2]:.3f}")
                     if self.csv_writer:
                         self.csv_writer.writerow([time.time()] + vals)
             except: pass
@@ -487,15 +497,28 @@ class RehabGUI:
                 self._handle_line(line)
                 parts = line.split(',')
                 if len(parts) == len(COLS):
-                    t = float(parts[6])
+                    # tau_ext is now at index 2
+                    t = float(parts[2])
                     if t > tau_max: tau_max = t
             except: pass
         if tau_max <= 0: tau_max = 1.0
         diff = float(self.therapy_diff_var.get())
         tau_ref = diff * tau_max
-        J = tau_ref / 10.0 
-        B = 2 * 1.0 * math.sqrt(J * (tau_ref/1.0))
-        K = tau_ref / 1.0
+        
+        # Apply safety threshold
+        if tau_ref < MIN_TAU_REF:
+            self._log(f"# WARNING: tau_ref {tau_ref:.2f} below minimum. Using {MIN_TAU_REF}")
+            tau_ref = MIN_TAU_REF
+        
+        J = tau_ref / 27.9 
+        K = tau_ref / 1.0472
+        B = 2 * 1.5 * math.sqrt(J * K)
+        
+        # Store these values for later use (e.g., removing spring)
+        self.last_J = J
+        self.last_B = B
+        self.last_K = K
+        
         self.mvc_label.config(text=f"Max: {tau_max:.2f} | Ref: {tau_ref:.2f}")
         # all the session data saved here, including calibration data and highscores
         master_session = {
@@ -528,6 +551,32 @@ class RehabGUI:
         self.session_active = False
         self.btn_stop_session.config(state="disabled")
         self._log("Session Stopped")
+    
+    def on_remove_spring(self):
+        """Remove spring effect by setting K=0, keeping MVC-calculated J and B values."""
+        if not self.connected:
+            messagebox.showerror("Error", "Connect to device first")
+            return
+        if not self.current_patient:
+            messagebox.showerror("Error", "Load a patient first")
+            return
+        
+        # Check if MVC has been run
+        if self.last_J is None or self.last_B is None:
+            messagebox.showerror("Error", "Run MVC test first to calculate J and B values")
+            return
+        
+        try:
+            # Use MVC-calculated J and B, set K to 0
+            J = self.last_J
+            B = self.last_B
+            K = 0.0  # Remove spring
+            
+            self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
+            self._log(f"# Spring removed: K=0, J={J:.4f}, B={B:.4f} (from MVC)")
+            messagebox.showinfo("Success", f"Spring effect removed (K=0)\nUsing MVC values: J={J:.4f}, B={B:.4f}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to remove spring: {e}")
 
     # CALIBRATION METHODS
     def reset_to_calibration(self):

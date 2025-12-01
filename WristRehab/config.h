@@ -36,7 +36,7 @@ static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =   -0.8600f;   // align to your home
+static constexpr float POT_OFFSET_RAD =   -1.220f;   // align to your home
 
 // ----------------- Gravity comp -----------------
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
@@ -52,7 +52,7 @@ static constexpr float Omega_EMA_ALPHA = 1.0f;
 
 // ----------------- Loop rates -----------------
 static constexpr float LOOP_HZ      = 1000.0f;        // inner velocity loop
-static constexpr unsigned long POS_DT_US = 12500.0f;     // ~100 Hz admittance
+static constexpr unsigned long POS_DT_US = 10000.0f;     // ~100 Hz admittance
 static constexpr unsigned long LOG_PERIOD_MS = 100;   // telemetry period
 
 // ----------------- Command shaping -----------------
@@ -69,13 +69,15 @@ static constexpr float INT_CLAMP = 150.0f;           // integral clamp (PWM)
 static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 
 // ----------------- Admittance -----------------
-static constexpr float Jv_INIT = 0.02865f;
-static constexpr float Bv_INIT = 0.23391f;
+static constexpr float Jv_INIT = 0.00179f;
+static constexpr float Bv_INIT = 0.18492f;
 static constexpr float Kv_INIT = 0.0f;
 //static constexpr float Kv_INIT = 0.0f;
 
 static constexpr float W_ADM_MAX = 30.0f;
 static constexpr float DW_ADM_MAX = 1000.0f;
+
+
 
 
 
