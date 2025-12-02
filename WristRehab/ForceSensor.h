@@ -20,6 +20,7 @@ public:
   }
   void tare(uint8_t times=20){ scale_.tare(times); }
   void setTotalMass(float mass_kg){ totalMassKg_ = mass_kg; }
+  void setArmLength(float length_m){ armLengthM_ = length_m; }
   
   // Set the reference angle for gravity compensation (called after tare)
   void setTareAngle(float theta_rad){ thetaTareRad_ = theta_rad; }
@@ -34,13 +35,14 @@ public:
     float gravDeltaN = totalMassKg_ * 9.82f * (sinf(theta) - sinf(thetaTareRad_));
     float F_ext = F_meas - gravDeltaN;
     forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
-    tauExt_ = TORQUE_SIGN * forceEma_ * ARM_LENGTH_M;
+    tauExt_ = TORQUE_SIGN * forceEma_ * armLengthM_;
     return tauExt_;
   }
 
   float forceFiltered() const { return forceEma_; }
   float tauExt() const { return tauExt_; }
   float thetaTare() const { return thetaTareRad_; }
+  float armLength() const { return armLengthM_; }
 
 private:
   HX711 scale_;
@@ -48,4 +50,5 @@ private:
   float tauExt_{0.0f};
   float totalMassKg_{0.072f};  // Dynamic mass for gravity compensation
   float thetaTareRad_{1.54f};  // Reference angle for gravity compensation
+  float armLengthM_{ARM_LENGTH_M};  // Dynamic arm length for torque calculation
 };

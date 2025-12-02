@@ -32,6 +32,13 @@ void SerialParser::poll(){
     Serial.print(theta_rad, 4);
     Serial.println(F(" rad"));
 
+  } else if (token.equalsIgnoreCase("armlength")){
+    float length_m = Serial.parseFloat();
+    ctrl_.setArmLength(length_m);
+    Serial.print(F("# arm length set to "));
+    Serial.print(length_m, 4);
+    Serial.println(F(" m"));
+
   } else if (token.equalsIgnoreCase("adm")){
     String rest = Serial.readStringUntil('\n');
     rest.trim();

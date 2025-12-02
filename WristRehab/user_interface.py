@@ -255,12 +255,16 @@ class RehabGUI:
         params.grid(row=2, column=0, sticky="ew", pady=5)
         self.therapy_weight_var = tk.StringVar()
         self.therapy_diff_var = tk.StringVar()
+        self.arm_length_var = tk.StringVar(value="0.09")
         ttk.Label(params, text="Weight:").grid(row=0, column=0, padx=5)
         ttk.Entry(params, textvariable=self.therapy_weight_var, width=10).grid(row=0, column=1, padx=3)
         ttk.Label(params, text="Diff:").grid(row=0, column=2, padx=5)
         ttk.Entry(params, textvariable=self.therapy_diff_var, width=10).grid(row=0, column=3, padx=3)
+        ttk.Label(params, text="Arm Length (m):").grid(row=0, column=4, padx=5)
+        ttk.Entry(params, textvariable=self.arm_length_var, width=10).grid(row=0, column=5, padx=3)
         ttk.Button(params, text="Send Mass", command=self.on_set_mass).grid(row=0, column=6, padx=10)
-        ttk.Button(params, text="Remove Spring (K=0)", command=self.on_remove_spring).grid(row=0, column=7, padx=10)
+        ttk.Button(params, text="Send Arm Length", command=self.on_set_arm_length).grid(row=0, column=7, padx=10)
+        ttk.Button(params, text="Remove Spring (K=0)", command=self.on_remove_spring).grid(row=0, column=8, padx=10)
         # maximum voluntary contraction (MVC) test controls
         mvc = ttk.LabelFrame(page, text="MVC Test (Start of Session)")
         mvc.grid(row=3, column=0, sticky="ew", pady=5)
@@ -571,8 +575,8 @@ class RehabGUI:
             self._log(f"# WARNING: tau_ref {tau_ref:.2f} below minimum. Using {MIN_TAU_REF}")
             tau_ref = MIN_TAU_REF
         
-        J = tau_ref / 15.0 
-        K = tau_ref / 0.1745
+        J = tau_ref / 27.9253 
+        K = tau_ref / 1.0472
         B = 2 * 1 * math.sqrt(J * K)
         
         # Store these values for later use (e.g., removing spring)
@@ -638,6 +642,25 @@ class RehabGUI:
             messagebox.showinfo("Success", f"Spring effect removed (K=0)\nUsing MVC values: J={J:.4f}, B={B:.4f}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to remove spring: {e}")
+    
+    def on_set_arm_length(self):
+        """Send arm length to the controller."""
+        if not self.connected:
+            messagebox.showerror("Error", "Connect to device first")
+            return
+        try:
+            length = float(self.arm_length_var.get())
+            if length <= 0:
+                messagebox.showerror("Error", "Arm length must be positive")
+                return
+            self._send(f"armlength {length:.4f}")
+            time.sleep(0.1)  # Give Arduino time to process
+            self._log(f"# Arm length set: {length:.4f} m")
+            messagebox.showinfo("Success", f"Arm length set to {length:.4f} m")
+        except ValueError:
+            messagebox.showerror("Error", "Invalid arm length value")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set arm length: {e}")
 
     # CALIBRATION METHODS
     def reset_to_calibration(self):

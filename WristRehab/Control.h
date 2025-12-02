@@ -140,7 +140,7 @@ public:
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
       Serial.print(theta_pot_deg-90);   // angle in degrees
-      // Serial.print(theta_pot_deg);   // angle in degrees
+      // Serial.print(theta_pot_rad);   // angle in degrees
       Serial.print(',');
       Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
       // Serial.print(theta_pot_rad);          Serial.print(',');
@@ -163,6 +163,7 @@ public:
   void tareScale(){ fs_.tare(); }
   void setTotalMass(float mass_kg){ fs_.setTotalMass(mass_kg); }
   void setTareAngle(float theta_rad){ fs_.setTareAngle(theta_rad); }
+  void setArmLength(float length_m){ fs_.setArmLength(length_m); }
 
   // Query whether admittance control is currently enabled.  This exposes
   // the state of the underlying Admittance object for use by
