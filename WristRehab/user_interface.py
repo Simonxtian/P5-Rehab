@@ -573,7 +573,7 @@ class RehabGUI:
         
         J = tau_ref / 15.0 
         K = tau_ref / 0.1745
-        B = 2 * 1.5 * math.sqrt(J * K)
+        B = 2 * 1 * math.sqrt(J * K)
         
         # Store these values for later use (e.g., removing spring)
         self.last_J = J

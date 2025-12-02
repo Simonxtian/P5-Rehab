@@ -36,7 +36,7 @@ static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =   -1.220f;   // align to your home
+static constexpr float POT_OFFSET_RAD =   -1.530f;   // align to your home
 
 // ----------------- Gravity comp -----------------
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
@@ -46,7 +46,7 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force (lower = more filtering)
+static constexpr float FORCE_EMA_ALPHA = 0.02f;        // LPF for force (lower = more filtering)
 
 static constexpr float Omega_EMA_ALPHA = 1.0f;
 
@@ -69,12 +69,12 @@ static constexpr float INT_CLAMP = 50.0f;           // integral clamp (PWM)
 static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 
 // ----------------- Admittance -----------------
-static constexpr float Jv_INIT = 0.00358f;
-static constexpr float Bv_INIT = 0.13589f;
+static constexpr float Jv_INIT =0.00115f;
+static constexpr float Bv_INIT = 0.08594f;
 static constexpr float Kv_INIT = 0.0f;
 //static constexpr float Kv_INIT = 0.0f;
 
-static constexpr float W_ADM_MAX = 15.0f;   // Reduced from 30 for stability
+static constexpr float W_ADM_MAX = 5.0f;   // Reduced from 30 for stability
 static constexpr float DW_ADM_MAX = 500.0f;  // Reduced from 1000 for smoother response
 
 
