@@ -12,6 +12,11 @@
   "alaa": {
     "name": "Alaa",
     "highscore": 27,
-    "session_highscore": 6
+    "session_highscore": 18
+  },
+  "simon": {
+    "name": "Simon",
+    "highscore": 9,
+    "session_highscore": 9
   }
 }

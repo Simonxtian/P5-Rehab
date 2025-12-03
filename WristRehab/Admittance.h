@@ -36,7 +36,8 @@ public:
     unsigned long dt_us = now - lastPosUs_;
     lastPosUs_ = now;
     float dt = dt_us * 1e-6f;
-
+    float theta_err= theta_enc - thetaEq_;
+    if (fabs(theta_err<radians(1.5f))) theta_err=0.0f;
     float spring = params_.Kv * (theta_enc - thetaEq_);
     
     // Improved discretization with better numerical stability
@@ -53,8 +54,9 @@ public:
     if (fabs(dw) > DW_ADM_MAX) {
       wNext = wAdm_ + copysignf(DW_ADM_MAX * dt, dw);
     }
-    
+    if (fabs(wNext) < 0.05f) wNext = 0.0f;
     wAdm_ = wNext;
+
 
     // --- timing stats: accumulate dt of *actual* updates ---
     accDtUs_ += dt_us;

@@ -20,8 +20,15 @@ public:
     lastLoopUs_ = micros();
     lastLogMs_  = millis();
   }
+  void clearFault() { faultLatched_ = false; }
+  bool isFault() const { return faultLatched_; }
 
   void update(){
+    if (faultLatched_) {
+      motor_.writePWM(0.0f);
+      return;
+    }
+
     unsigned long now = micros();
     const unsigned long dt_us_target = (unsigned long)(1e6f / LOOP_HZ);
     if ((now - lastLoopUs_) < dt_us_target) return;
@@ -31,7 +38,6 @@ public:
 
     // encoder & speed
     float theta_enc = enc_.thetaRad();
-
     enc_.updateSpeed();
     float w_meas = enc_.wRadPerSec();
 
@@ -50,7 +56,7 @@ public:
   //   unsigned long dt_adm_us = now - lastAdmUs;
   //   lastAdmUs = now;
 
-  //   t_sec += dt_adm_us * 1e-6f;   // advance time in seconds
+  //   t_sec += dt_adm_us * 1e-6f;   //  time in seconds
 
   //   // --- TEST INPUT: pure sine torque instead of load cell ---
   //   tau_ext = A_TAU * sinf(2.0f * PI * F_TEST * t_sec);
@@ -69,7 +75,6 @@ public:
     float tau_ext = fs_.updateAndGetTau();
     adm_.update(theta_enc, tau_ext);
 
-    // // compose command
     float w_total = (adm_.enabled() ? (wUser_ + adm_.wAdm()) : wUser_);
 
 
@@ -97,6 +102,11 @@ public:
 
 
     float u_pwm = pid_.step(w_total, w_meas, dt);
+    const float TAU_FAULT_LIMIT = 1.0f;   // Nm, your chosen limit
+    if (fabsf(tau_ext) > TAU_FAULT_LIMIT) {
+      faultLatched_ = true;
+      u_pwm = 0.0f;
+    }
 
     
 
@@ -139,20 +149,20 @@ public:
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
       float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg-90);   // angle in degrees
+      Serial.print(theta_pot_deg-90);   Serial.print(',');
       // Serial.print(theta_pot_rad);   // angle in degrees
-      Serial.print(',');
+      
       Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
       // Serial.print(theta_pot_rad);          Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
       // Serial.print(w_total, 6);          Serial.print(',');
       // Serial.print(wUser_, 6);           Serial.print(',');
-      // Serial.print(w_meas, 6);           Serial.print(',');
+      Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      Serial.println(tau_ext,5);          // Serial.print(',');
-      // Serial.println(adm_.wAdm(),5);
+      Serial.print(tau_ext,5);         Serial.print(',');
+      Serial.println(adm_.wAdm(),5);
     }
   }
   // ---- API used by SerialParser ----
@@ -205,4 +215,7 @@ private:
   bool overrideActive_{false};
   float overridePWM_{0.0f};
   uint32_t overrideEndMs_{0};
+
+  // safety fault (latched)
+  bool faultLatched_{false};
 };

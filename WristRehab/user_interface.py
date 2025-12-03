@@ -214,8 +214,13 @@ class RehabGUI:
         self.new_weight_var = tk.StringVar(value="70")
         ttk.Entry(register_frm, textvariable=self.new_weight_var, width=25).grid(row=1, column=1, pady=5)
         ttk.Label(register_frm, text="Difficulty (0.1-1.0):").grid(row=2, column=0, sticky="w", pady=5)
-        self.new_diff_var = tk.StringVar(value="0.6")
-        ttk.Entry(register_frm, textvariable=self.new_diff_var, width=25).grid(row=2, column=1, pady=5)
+        diff_frame = ttk.Frame(register_frm)
+        diff_frame.grid(row=2, column=1, pady=5, sticky="ew")
+        self.new_diff_var = tk.DoubleVar(value=0.6)
+        self.new_diff_slider = ttk.Scale(diff_frame, from_=0.1, to=1.0, orient="horizontal", variable=self.new_diff_var, command=self._update_diff_label)
+        self.new_diff_slider.pack(side="left", fill="x", expand=True)
+        self.new_diff_label = ttk.Label(diff_frame, text="0.60", width=6)
+        self.new_diff_label.pack(side="left", padx=5)
         ttk.Button(register_frm, text="Register & Continue", command=self._register_new_patient).grid(row=4, column=0, columnspan=2, pady=20)
 
     def _build_therapy_page(self):
@@ -254,29 +259,34 @@ class RehabGUI:
         params = ttk.LabelFrame(page, text="Parameters")
         params.grid(row=2, column=0, sticky="ew", pady=5)
         self.therapy_weight_var = tk.StringVar()
-        self.therapy_diff_var = tk.StringVar()
+        self.therapy_diff_var = tk.DoubleVar()
         self.arm_length_var = tk.StringVar(value="0.09")
+        self.spring_enabled = True  # Track spring state
+        
         ttk.Label(params, text="Weight:").grid(row=0, column=0, padx=5)
         ttk.Entry(params, textvariable=self.therapy_weight_var, width=10).grid(row=0, column=1, padx=3)
-        ttk.Label(params, text="Diff:").grid(row=0, column=2, padx=5)
-        ttk.Entry(params, textvariable=self.therapy_diff_var, width=10).grid(row=0, column=3, padx=3)
+        
+        ttk.Label(params, text="Difficulty:").grid(row=0, column=2, padx=5)
+        diff_therapy_frame = ttk.Frame(params)
+        diff_therapy_frame.grid(row=0, column=3, padx=3)
+        self.therapy_diff_slider = ttk.Scale(diff_therapy_frame, from_=0.1, to=1.0, orient="horizontal", variable=self.therapy_diff_var, command=self._update_therapy_diff_label, length=100)
+        self.therapy_diff_slider.pack(side="left")
+        self.therapy_diff_label = ttk.Label(diff_therapy_frame, text="0.60", width=6)
+        self.therapy_diff_label.pack(side="left", padx=2)
+        
         ttk.Label(params, text="Arm Length (m):").grid(row=0, column=4, padx=5)
         ttk.Entry(params, textvariable=self.arm_length_var, width=10).grid(row=0, column=5, padx=3)
         ttk.Button(params, text="Send Mass", command=self.on_set_mass).grid(row=0, column=6, padx=10)
         ttk.Button(params, text="Send Arm Length", command=self.on_set_arm_length).grid(row=0, column=7, padx=10)
-        ttk.Button(params, text="Remove Spring (K=0)", command=self.on_remove_spring).grid(row=0, column=8, padx=10)
+        self.btn_toggle_spring = ttk.Button(params, text="Spring: ON", command=self.on_toggle_spring)
+        self.btn_toggle_spring.grid(row=0, column=8, padx=10)
+        ttk.Button(params, text="Admittance OFF", command=self.on_force_admittance_off, style="Danger.TButton").grid(row=0, column=9, padx=10)
         # maximum voluntary contraction (MVC) test controls
         mvc = ttk.LabelFrame(page, text="MVC Test (Start of Session)")
         mvc.grid(row=3, column=0, sticky="ew", pady=5)
-        ttk.Label(mvc, text="θ_target:").grid(row=0, column=0, padx=5)
-        self.theta_target_var = tk.StringVar(value="60")
-        ttk.Entry(mvc, textvariable=self.theta_target_var, width=8).grid(row=0, column=1, padx=3)
-        ttk.Label(mvc, text="a_max:").grid(row=0, column=2, padx=5)
-        self.amax_var = tk.StringVar(value="100")
-        ttk.Entry(mvc, textvariable=self.amax_var, width=8).grid(row=0, column=3, padx=3)
-        ttk.Button(mvc, text="Run MVC (5s)", command=self.on_run_mvc).grid(row=0, column=4, padx=10)
+        ttk.Button(mvc, text="Run MVC (5s)", command=self.on_run_mvc).grid(row=0, column=0, padx=10, pady=5)
         self.mvc_label = ttk.Label(mvc, text="Results: -", foreground="blue")
-        self.mvc_label.grid(row=1, column=0, columnspan=5, sticky="w", pady=5, padx=5)
+        self.mvc_label.grid(row=1, column=0, sticky="w", pady=5, padx=5)
         # telemetry display for seeing the results
         live = ttk.LabelFrame(page, text="Telemetry")
         live.grid(row=4, column=0, sticky="ew", pady=5)
@@ -378,7 +388,7 @@ class RehabGUI:
         if not name: return
         try:
             w = float(self.new_weight_var.get())
-            d = float(self.new_diff_var.get())
+            d = self.new_diff_var.get()  # Already a float from DoubleVar
         except: return
         self.current_patient_id = self.patient_db.add_patient(name, w, d)
         self.current_patient = self.patient_db.get_patient(self.current_patient_id)
@@ -389,7 +399,16 @@ class RehabGUI:
         if not self.current_patient: return
         self.patient_header_var.set(f"Patient: {self.current_patient['name']}")
         self.therapy_weight_var.set(str(self.current_patient['weight']))
-        self.therapy_diff_var.set(str(self.current_patient['difficulty']))
+        self.therapy_diff_var.set(float(self.current_patient['difficulty']))
+        self._update_therapy_diff_label(self.current_patient['difficulty'])
+    
+    def _update_diff_label(self, val):
+        """Update difficulty label for new patient registration."""
+        self.new_diff_label.config(text=f"{float(val):.2f}")
+    
+    def _update_therapy_diff_label(self, val):
+        """Update difficulty label for therapy page."""
+        self.therapy_diff_label.config(text=f"{float(val):.2f}")
 
     def _populate_ports(self):
         ports = [p.device for p in serial.tools.list_ports.comports()]
@@ -415,9 +434,7 @@ class RehabGUI:
             time.sleep(1.0)  # Longer delay to ensure serial is ready and auto-calibration completes
             self._send("adm off")
             time.sleep(0.2)
-            self._send("w 0")
-            time.sleep(0.2)
-            self._log("# Initialization: Admittance disabled, velocity=0")
+            self._log("# Admittance disabled on connect")
             self._log("# Note: Arduino auto-calibrated load cell at startup")
         else:
             self.stop_event.set()
@@ -527,8 +544,13 @@ class RehabGUI:
             messagebox.showerror("Error", "Load a patient first")
             return
         try:
+            # Tare before setting mass
+            self._send("tare")
+            time.sleep(0.3)
+            self._log("# Load cell tared")
+            
             w = float(self.therapy_weight_var.get())
-            mass = 0.006 * w
+            mass = 0.006 * w + 0.072
             self.patient_db.update_patient(self.current_patient_id, weight=w)
             self._send(f"totalmass {mass:.4f}")
             time.sleep(0.1)  # Give Arduino time to process
@@ -549,10 +571,10 @@ class RehabGUI:
             self.session_active = False
         self._log("MVC Started...")
         self._send("adm off")
-        self._send("w 0")
-        self._send("tare")
         time.sleep(0.5)
         self._send("eq hold")
+        time.sleep(0.2)
+        
         t_end = time.time() + 5.0
         tau_max = 0.0
         while time.time() < t_end:
@@ -567,7 +589,7 @@ class RehabGUI:
                     if t > tau_max: tau_max = t
             except: pass
         if tau_max <= 0: tau_max = 1.0
-        diff = float(self.therapy_diff_var.get())
+        diff = self.therapy_diff_var.get()  # Get from slider (already float)
         tau_ref = diff * tau_max
         
         # Apply safety threshold
@@ -579,18 +601,21 @@ class RehabGUI:
         K = tau_ref / 1.0472
         B = 2 * 1 * math.sqrt(J * K)
         
-        # Store these values for later use (e.g., removing spring)
+        # Store these values for later use (e.g., toggling spring)
         self.last_J = J
         self.last_B = B
         self.last_K = K
+        self.spring_enabled = True  # Reset spring state to ON
+        self.btn_toggle_spring.config(text="Spring: ON")
         
-        self.mvc_label.config(text=f"Max: {tau_max:.2f} | Ref: {tau_ref:.2f}")
+        self.mvc_label.config(text=f"Max: {tau_max:.2f} | Ref: {tau_ref:.2f} | Diff: {diff:.2f}")
         # all the session data saved here, including calibration data and highscores
         master_session = {
             'timestamp': datetime.now().isoformat(),
             'type': 'THERAPY_SESSION',
             'mvc_tau_max': tau_max,
             'mvc_tau_ref': tau_ref,
+            'difficulty': diff,
             'flexion_rom': 0.0,
             'extension_rom': 0.0,
             'session_highscore_flex': 0,
@@ -599,15 +624,22 @@ class RehabGUI:
         }
         self.patient_db.create_new_session(self.current_patient_id, master_session)
         self._log("# Session Created. MVC saved.")
+        
+        # Send admittance parameters
         self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
-        time.sleep(0.1)
+        time.sleep(0.2)
         self._send("eq hold")
-        time.sleep(0.1)
+        time.sleep(0.2)
+        
+        # Turn admittance ON after MVC
         self._send("adm on")
+        time.sleep(0.2)
+        self._log("# Admittance enabled after MVC")
+        
         self.session_active = True
         self.btn_stop_session.config(state="normal")
         self.btn_goto_games.config(state="normal")
-        messagebox.showinfo("MVC Done", "Therapy Active. Go to Games.")
+        messagebox.showinfo("MVC Done", "Admittance Active. Therapy session started. Go to Games.")
 
     def _stop_session(self):
         if not self.connected: return
@@ -617,8 +649,8 @@ class RehabGUI:
         self.btn_stop_session.config(state="disabled")
         self._log("Session Stopped")
     
-    def on_remove_spring(self):
-        """Remove spring effect by setting K=0, keeping MVC-calculated J and B values."""
+    def on_toggle_spring(self):
+        """Toggle spring effect on/off by setting K to calculated value or 0."""
         if not self.connected:
             messagebox.showerror("Error", "Connect to device first")
             return
@@ -627,21 +659,32 @@ class RehabGUI:
             return
         
         # Check if MVC has been run
-        if self.last_J is None or self.last_B is None:
-            messagebox.showerror("Error", "Run MVC test first to calculate J and B values")
+        if self.last_J is None or self.last_B is None or self.last_K is None:
+            messagebox.showerror("Error", "Run MVC test first to calculate admittance parameters")
             return
         
         try:
-            # Use MVC-calculated J and B, set K to 0
             J = self.last_J
             B = self.last_B
-            K = 0.0  # Remove spring
             
-            self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
-            self._log(f"# Spring removed: K=0, J={J:.4f}, B={B:.4f} (from MVC)")
-            messagebox.showinfo("Success", f"Spring effect removed (K=0)\nUsing MVC values: J={J:.4f}, B={B:.4f}")
+            if self.spring_enabled:
+                # Turn spring OFF (K=0)
+                K = 0.0
+                self.spring_enabled = False
+                self.btn_toggle_spring.config(text="Spring: OFF")
+                self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
+                self._log(f"# Spring disabled: K=0, J={J:.4f}, B={B:.4f}")
+                messagebox.showinfo("Success", f"Spring effect disabled (K=0)")
+            else:
+                # Turn spring ON (use MVC-calculated K)
+                K = self.last_K
+                self.spring_enabled = True
+                self.btn_toggle_spring.config(text="Spring: ON")
+                self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
+                self._log(f"# Spring enabled: K={K:.4f}, J={J:.4f}, B={B:.4f}")
+                messagebox.showinfo("Success", f"Spring effect enabled (K={K:.4f})")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to remove spring: {e}")
+            messagebox.showerror("Error", f"Failed to toggle spring: {e}")
     
     def on_set_arm_length(self):
         """Send arm length to the controller."""
@@ -661,6 +704,19 @@ class RehabGUI:
             messagebox.showerror("Error", "Invalid arm length value")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to set arm length: {e}")
+    
+    def on_force_admittance_off(self):
+        """Force admittance control OFF - emergency/safety feature."""
+        if not self.connected:
+            messagebox.showerror("Error", "Connect to device first")
+            return
+        
+        self._send("adm off")
+        time.sleep(0.2)
+        self._log("# ADMITTANCE FORCED OFF")
+        self.session_active = False
+        self.btn_stop_session.config(state="disabled")
+        messagebox.showinfo("Admittance OFF", "Admittance control has been disabled")
 
     # CALIBRATION METHODS
     def reset_to_calibration(self):

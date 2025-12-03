@@ -44,10 +44,10 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 
 
 // ----------------- Filters & timing -----------------
-static constexpr unsigned long SPEED_WIN_US = 1000;  // speed oversampling window
+static constexpr unsigned long SPEED_WIN_US =1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 0.1f;        // LPF for force (lower = more filtering)
-static constexpr float Omega_EMA_ALPHA = 1.0f;
+static constexpr float FORCE_EMA_ALPHA = 0.10f;        // LPF for force (lower = more filtering)
+static constexpr float Omega_EMA_ALPHA = 0.10f;
 
 // ----------------- Loop rates -----------------
 static constexpr float LOOP_HZ      = 1000.0f;        // inner velocity loop
@@ -57,8 +57,8 @@ static constexpr unsigned long LOG_PERIOD_MS = 100;   // telemetry period
 // -----------------Limits-----------------
 static constexpr float W_ADM_MAX = 6.0f;   
 static constexpr float DW_ADM_MAX = 30.0f;  
-static constexpr uint8_t PWM_MAX   = 255;            // HW limit
-static constexpr uint8_t PWM_LIMIT = 255;            // soft limit
+static constexpr uint8_t PWM_MAX   = 255;            
+static constexpr uint8_t PWM_LIMIT = 255;           
 
 // ----------------- Velocity PID -----------------
 static constexpr float KP_INIT = 29.2825f;
@@ -72,6 +72,9 @@ static constexpr float Jv_INIT =0.01790f;
 static constexpr float Bv_INIT =0.18492f;
 // static constexpr float Kv_INIT =0.47746f;
 static constexpr float Kv_INIT = 0.0f;
+
+const float TAU_FAULT_LIMIT = 1.0f;   // just to see if it still trips immediately
+
 
 
 

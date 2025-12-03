@@ -32,10 +32,11 @@ public:
     int adc = analogRead(PIN_POT);
     float theta = adcToThetaRad(adc);
     // Gravity change relative to tare angle (now dynamic)
-    float gravDeltaN = totalMassKg_ * 9.82f * (sinf(theta) - sinf(thetaTareRad_));
+    float gravDeltaN = (totalMassKg_ * 9.82f * (sinf(theta) - sinf(thetaTareRad_)));
     float F_ext = F_meas - gravDeltaN;
     forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
     tauExt_ = TORQUE_SIGN * forceEma_ * armLengthM_;
+    // if (fabs(tauExt_)< 0.02) tauExt_=0.0f;
     return tauExt_;
   }
 

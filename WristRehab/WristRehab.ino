@@ -31,9 +31,9 @@ void setup() {
   // Set this as the tare angle for gravity compensation
   ctrl.setTareAngle(initial_theta);
   
-  Serial.print(F("# Auto-calibrated at startup: theta_tare = "));
-  Serial.print(initial_theta, 4);
-  Serial.println(F(" rad"));
+  // Serial.print(F("# Auto-calibrated at startup: theta_tare = "));
+  // Serial.print(initial_theta, 4);
+  // Serial.println(F(" rad"));
 }
 
 void loop() {

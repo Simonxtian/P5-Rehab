@@ -13,7 +13,7 @@ public:
   // Returns signed PWM command (clamped to +/- PWM_MAX)
   float step(float w_cmd, float w_meas, float dt){
     float e = w_cmd - w_meas;
-    if (fabs(e) < 0.15f) e = 0.0f; // deadband
+    if (fabs(e) < 0.05f) e = 0.0f; // deadband
     
     // Only integrate if not saturated (anti-windup)
     float u_unsat = Kp_*e + iTerm_;
