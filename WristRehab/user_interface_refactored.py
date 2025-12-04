@@ -399,23 +399,23 @@ class TherapyPage(BasePage):
         btn_frame1.grid(row=1, column=0, columnspan=6, pady=5, padx=10)
         
         ttk.Button(btn_frame1, text="Send Mass", command=self.app.send_mass, 
-                  width=15).pack(side="left", padx=5)
+                  width=20).pack(side="left", padx=5)
         ttk.Button(btn_frame1, text="Send Arm Length", command=self.app.send_arm_length,
-                  width=15).pack(side="left", padx=5)
+                  width=20).pack(side="left", padx=5)
         
         # Row 2: Control buttons
         btn_frame2 = ttk.Frame(params)
         btn_frame2.grid(row=2, column=0, columnspan=6, pady=5, padx=10)
         
         self.btn_toggle_spring = ttk.Button(btn_frame2, text="Spring: ON", 
-                                           command=self.app.toggle_spring, width=15)
+                                           command=self.app.toggle_spring, width=20)
         self.btn_toggle_spring.pack(side="left", padx=5)
         
         ttk.Button(btn_frame2, text="Admittance OFF", command=self.app.force_admittance_off,
-                  width=15).pack(side="left", padx=5)
+                  width=20).pack(side="left", padx=5)
         
         ttk.Button(btn_frame2, text="Clear Fault", command=self.app.clear_fault,
-                  width=15).pack(side="left", padx=5)
+                  width=20).pack(side="left", padx=5)
     
     def _build_mvc_section(self):
         mvc = ttk.LabelFrame(self, text="MVC Test (Start of Session)")
