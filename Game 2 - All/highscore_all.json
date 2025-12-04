@@ -3,8 +3,8 @@
   "session_highscore": 0,
   "sonia": {
     "name": "sonia",
-    "highscore": 4,
-    "session_highscore": 0
+    "highscore": 14,
+    "session_highscore": 14
   },
   "guest": {
     "name": "Guest",
@@ -14,12 +14,12 @@
   "alaa": {
     "name": "Alaa",
     "highscore": 30,
-    "session_highscore": 23
+    "session_highscore": 0
   },
   "viktor": {
     "name": "Viktor",
-    "highscore": 8,
-    "session_highscore": 0
+    "highscore": 30,
+    "session_highscore": 30
   },
   "simon": {
     "name": "Simon",

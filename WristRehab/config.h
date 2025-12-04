@@ -46,8 +46,17 @@ static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
 // ----------------- Filters & timing -----------------
 static constexpr unsigned long SPEED_WIN_US =1000;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
-static constexpr float FORCE_EMA_ALPHA = 0.10f;        // LPF for force (lower = more filtering)
+static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force (lower = more filtering)
 static constexpr float Omega_EMA_ALPHA = 0.10f;
+
+// Butterworth 2nd-order LPF coefficients for force filtering
+// Generate these from MATLAB: [b,a] = butter(2, Wn, 'low');
+// where Wn = cutoff_freq / (sample_rate/2)
+static constexpr float BUTTER_B0 = 0.0675f;
+static constexpr float BUTTER_B1 = 0.1349f;
+static constexpr float BUTTER_B2 = 0.0675f;
+static constexpr float BUTTER_A1 = -1.1430f;
+static constexpr float BUTTER_A2 = 0.4128f;
 
 // ----------------- Loop rates -----------------
 static constexpr float LOOP_HZ      = 1000.0f;        // inner velocity loop
@@ -70,11 +79,10 @@ static constexpr float D_TAU_VEL = 0.002f;           // deriv. LPF [s]
 // ----------------- Admittance -----------------
 static constexpr float Jv_INIT =0.01790f;
 static constexpr float Bv_INIT =0.18492f;
-// static constexpr float Kv_INIT =0.47746f;
-static constexpr float Kv_INIT = 0.0f;
+static constexpr float Kv_INIT =0.47746f;
+// static constexpr float Kv_INIT = 0.0f;
 
-const float TAU_FAULT_LIMIT = 1.0f;   // just to see if it still trips immediately
-
+const float TAU_FAULT_LIMIT = 5.3f;   
 
 
 

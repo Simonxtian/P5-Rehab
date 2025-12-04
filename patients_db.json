@@ -1,7 +1,7 @@
 {
   "alaa": {
     "name": "Alaa",
-    "weight": 70.0,
+    "weight": 69.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:04:58.382271",
     "sessions": [
@@ -745,6 +745,126 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-03T18:43:08.131963",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-03T18:44:19.962028",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -28.82,
+        "extension_rom": 31.88,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 30,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T09:58:23.656586",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -58.91,
+        "extension_rom": 61.18,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 5,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:01:40.004317",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.12244,
+        "mvc_tau_ref": 0.07346399999999999,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:02:30.087861",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -38.32,
+        "extension_rom": 32.68,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:04:14.404334",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.13583,
+        "mvc_tau_ref": 0.081498,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:05:42.390354",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.02791,
+        "mvc_tau_ref": 0.05,
+        "difficulty": 0.7488372093023256,
+        "flexion_rom": -34.36,
+        "extension_rom": 34.79,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:08:24.525727",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -44.92,
+        "extension_rom": 35.58,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:09:58.485007",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -43.6,
+        "extension_rom": 35.58,
+        "session_highscore_flex": 7,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:21:22.010012",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -29.35,
+        "extension_rom": 49.57,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
       }
     ],
     "highscore": 0
@@ -761,7 +881,7 @@
   },
   "sonia": {
     "name": "sonia",
-    "weight": 40.0,
+    "weight": 55.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:52:00.039383",
     "sessions": [
@@ -785,6 +905,18 @@
         "extension_rom": 108.07,
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T09:01:22.987663",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": -31.99,
+        "extension_rom": 26.61,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 14,
         "session_highscore_ext": 0
       }
     ]
@@ -811,6 +943,30 @@
         "type": "THERAPY_SESSION",
         "mvc_tau_max": 1.0,
         "mvc_tau_ref": 0.4,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T09:05:21.341242",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.4,
+        "difficulty": 0.4,
+        "flexion_rom": -31.99,
+        "extension_rom": 21.33,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 30,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T10:52:37.569299",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6965116279069767,
+        "difficulty": 0.6965116279069767,
         "flexion_rom": 0.0,
         "extension_rom": 0.0,
         "session_highscore_flex": 0,

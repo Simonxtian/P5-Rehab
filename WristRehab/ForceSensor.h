@@ -13,7 +13,9 @@ public:
     scale_.set_scale(COUNTS_PER_N);
     delay(100);
     tare(20);
-    forceEma_ = 0.0f;
+    forceFilter_.begin(BUTTER_B0, BUTTER_B1, BUTTER_B2, BUTTER_A1, BUTTER_A2);
+    forceFiltered_ = 0.0f;
+    // forceEma_ = 0.0f;
     tauExt_ = 0.0f;
     totalMassKg_ = 0.072f;
     thetaTareRad_ = 1.54f;  // Default reference angle, updated by calibration
@@ -34,9 +36,11 @@ public:
     // Gravity change relative to tare angle (now dynamic)
     float gravDeltaN = (totalMassKg_ * 9.82f * (sinf(theta) - sinf(thetaTareRad_)));
     float F_ext = F_meas - gravDeltaN;
-    forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
-    tauExt_ = TORQUE_SIGN * forceEma_ * armLengthM_;
-    // if (fabs(tauExt_)< 0.02) tauExt_=0.0f;
+    // forceEma_ = emaStep(forceEma_, F_ext, FORCE_EMA_ALPHA);
+    // tauExt_ = TORQUE_SIGN * forceEma_ * armLengthM_;
+    forceFiltered_ = forceFilter_.update(F_ext);
+    tauExt_ = TORQUE_SIGN * forceFiltered_ * armLengthM_;
+    if (fabs(tauExt_)< 0.02) tauExt_=0.0f;
     return tauExt_;
   }
 
@@ -48,6 +52,8 @@ public:
 private:
   HX711 scale_;
   float forceEma_{0.0f};
+  ButterworthLP2 forceFilter_; 
+  float forceFiltered_{0.0f};
   float tauExt_{0.0f};
   float totalMassKg_{0.072f};  // Dynamic mass for gravity compensation
   float thetaTareRad_{1.54f};  // Reference angle for gravity compensation

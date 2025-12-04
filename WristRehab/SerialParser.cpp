@@ -99,7 +99,11 @@ void SerialParser::poll(){
     ctrl_.overridePWM(0, 1);
     Serial.println(F("# test sequence done"));
     
-  } 
+  } else if (token.equalsIgnoreCase("clearfault")){
+    ctrl_.clearFault();
+    Serial.println(F("# fault cleared"));
+
+  }
 
 
 
