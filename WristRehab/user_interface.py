@@ -281,6 +281,7 @@ class RehabGUI:
         self.btn_toggle_spring = ttk.Button(params, text="Spring: ON", command=self.on_toggle_spring)
         self.btn_toggle_spring.grid(row=0, column=8, padx=10)
         ttk.Button(params, text="Admittance OFF", command=self.on_force_admittance_off, style="Danger.TButton").grid(row=0, column=9, padx=10)
+        ttk.Button(params, text="Clear Fault", command=self.on_clear_fault).grid(row=0, column=10, padx=10)
         # maximum voluntary contraction (MVC) test controls
         mvc = ttk.LabelFrame(page, text="MVC Test (Start of Session)")
         mvc.grid(row=3, column=0, sticky="ew", pady=5)
@@ -717,6 +718,17 @@ class RehabGUI:
         self.session_active = False
         self.btn_stop_session.config(state="disabled")
         messagebox.showinfo("Admittance OFF", "Admittance control has been disabled")
+    
+    def on_clear_fault(self):
+        """Clear the latched fault state in the controller."""
+        if not self.connected:
+            messagebox.showerror("Error", "Connect to device first")
+            return
+        
+        self._send("clearfault")
+        time.sleep(0.1)
+        self._log("# Fault cleared - system ready to resume")
+        messagebox.showinfo("Fault Cleared", "Fault state has been cleared")
 
     # CALIBRATION METHODS
     def reset_to_calibration(self):
