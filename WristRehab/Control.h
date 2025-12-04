@@ -102,7 +102,11 @@ public:
 
 
     float u_pwm = pid_.step(w_total, w_meas, dt);
+<<<<<<< Updated upstream
     const float TAU_FAULT_LIMIT = 5.0f;   // Nm, your chosen limit
+=======
+    //const float TAU_FAULT_LIMIT = 1.0f;   // Nm, your chosen limit
+>>>>>>> Stashed changes
     if (fabsf(tau_ext) > TAU_FAULT_LIMIT) {
       faultLatched_ = true;
       u_pwm = 0.0f;
