@@ -148,11 +148,11 @@ public:
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
-      float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg-90);   Serial.print(',');
+      float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG); // fabs(theta_pot_rad * RAD_TO_DEG);
+      Serial.print(theta_pot_deg-0);   Serial.print(','); //SUPER NEEDED
       // Serial.print(theta_pot_rad);   // angle in degrees
       
-      Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
+      Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1 SUPER NEEDED
       // Serial.print(theta_pot_rad);          Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
@@ -161,7 +161,7 @@ public:
       // Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      Serial.println(tau_ext,5);        // Serial.print(',');
+      Serial.println(tau_ext,5);        // Serial.print(','); SUPER NEEDED
       // Serial.println(adm_.wAdm(),5);
     }
   }
