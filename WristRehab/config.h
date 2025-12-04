@@ -82,7 +82,7 @@ static constexpr float Bv_INIT =0.18492f;
 static constexpr float Kv_INIT =0.47746f;
 // static constexpr float Kv_INIT = 0.0f;
 
-const float TAU_FAULT_LIMIT = 5.3f;   
+const float TAU_FAULT_LIMIT = 50.3f;   
 
 
 
