@@ -23,5 +23,10 @@
     "name": "Viktor",
     "highscore": 0,
     "session_highscore": 0
+  },
+  "waldo": {
+    "name": "Waldo",
+    "highscore": 0,
+    "session_highscore": 0
   }
 }

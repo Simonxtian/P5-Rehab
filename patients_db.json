@@ -874,7 +874,32 @@
     "weight": 68.0,
     "difficulty": 0.9,
     "created": "2025-11-20T10:25:35.339379",
-    "sessions": [],
+    "sessions": [
+      {
+        "timestamp": "2025-12-04T13:33:23.122355",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6688679245283019,
+        "difficulty": 0.6688679245283019,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T13:34:49.149062",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6688679245283019,
+        "difficulty": 0.6688679245283019,
+        "flexion_rom": 29.24,
+        "extension_rom": 112.12,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      }
+    ],
     "highscore_flex": 0,
     "highscore_all": 0,
     "highscore_extend": 0
