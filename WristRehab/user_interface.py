@@ -134,7 +134,7 @@ class RehabGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Wrist Rehab – Unified System")
-        self.root.geometry("900x700")
+        self.root.geometry("1100x650")
         
         self.ser_thread = None
         self.stop_event = threading.Event()

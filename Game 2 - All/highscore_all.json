@@ -29,16 +29,21 @@
   "waldo": {
     "name": "Waldo",
     "highscore": 30,
-    "session_highscore": 30
+    "session_highscore": 12
   },
   "bjarke": {
     "name": "Bjarke",
-    "highscore": 30,
-    "session_highscore": 30
+    "highscore": 38,
+    "session_highscore": 38
   },
   "marcus": {
     "name": "Marcus",
     "highscore": 29,
     "session_highscore": 29
+  },
+  "voksen_mand": {
+    "name": "Voksen_mand",
+    "highscore": 58,
+    "session_highscore": 58
   }
 }
