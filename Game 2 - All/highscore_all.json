@@ -45,5 +45,15 @@
     "name": "Voksen_mand",
     "highscore": 58,
     "session_highscore": 58
+  },
+  "jonas": {
+    "name": "Jonas",
+    "highscore": 40,
+    "session_highscore": 40
+  },
+  "vituman": {
+    "name": "Vituman",
+    "highscore": 31,
+    "session_highscore": 31
   }
 }

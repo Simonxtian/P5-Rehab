@@ -1675,5 +1675,45 @@
         "session_highscore_ext": 0
       }
     ]
+  },
+  "jonas": {
+    "name": "Jonas",
+    "weight": 75.0,
+    "difficulty": 0.5597826086956522,
+    "created": "2025-12-05T13:35:47.027202",
+    "sessions": [
+      {
+        "timestamp": "2025-12-05T13:36:30.199354",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.5597826086956522,
+        "flexion_rom": 20.94,
+        "extension_rom": 136.81,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 40,
+        "session_highscore_ext": 0
+      }
+    ]
+  },
+  "vituman": {
+    "name": "Vituman",
+    "weight": 78.0,
+    "difficulty": 0.6380434782608696,
+    "created": "2025-12-05T13:42:48.342598",
+    "sessions": [
+      {
+        "timestamp": "2025-12-05T13:44:16.692201",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.6546511627906977,
+        "flexion_rom": 43.64,
+        "extension_rom": 114.64,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 31,
+        "session_highscore_ext": 0
+      }
+    ]
   }
 }
