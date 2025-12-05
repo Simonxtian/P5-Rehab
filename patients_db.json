@@ -874,7 +874,20 @@
     "weight": 68.0,
     "difficulty": 0.9,
     "created": "2025-11-20T10:25:35.339379",
-    "sessions": [],
+    "sessions": [
+      {
+        "timestamp": "2025-12-05T09:49:20.855730",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.9,
+        "difficulty": 0.9,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      }
+    ],
     "highscore_flex": 0,
     "highscore_all": 0,
     "highscore_extend": 0
@@ -917,6 +930,18 @@
         "extension_rom": 26.61,
         "session_highscore_flex": 0,
         "session_highscore_all": 14,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T09:47:42.305057",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
         "session_highscore_ext": 0
       }
     ]
