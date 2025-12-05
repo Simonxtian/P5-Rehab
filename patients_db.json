@@ -1342,6 +1342,30 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T13:01:54.685821",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.05563,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.9,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T13:02:39.304947",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.6023255813953489,
+        "flexion_rom": 28.6,
+        "extension_rom": 148.68,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 12,
+        "session_highscore_ext": 0
       }
     ],
     "highscore_flex": 0,
@@ -1541,6 +1565,30 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 30,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T13:08:19.444368",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.5081395348837209,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T13:09:20.233591",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.5081395348837209,
+        "flexion_rom": 21.21,
+        "extension_rom": 139.45,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 38,
+        "session_highscore_ext": 0
       }
     ]
   },
@@ -1604,6 +1652,26 @@
         "extension_rom": 144.2,
         "session_highscore_flex": 0,
         "session_highscore_all": 29,
+        "session_highscore_ext": 0
+      }
+    ]
+  },
+  "voksen_mand": {
+    "name": "Voksen_mand",
+    "weight": 78.0,
+    "difficulty": 0.6,
+    "created": "2025-12-05T13:21:24.336098",
+    "sessions": [
+      {
+        "timestamp": "2025-12-05T13:22:50.441807",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 0.11885,
+        "mvc_tau_ref": 1.0,
+        "difficulty": 0.6,
+        "flexion_rom": 49.18,
+        "extension_rom": 129.68,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 58,
         "session_highscore_ext": 0
       }
     ]
