@@ -876,16 +876,87 @@
     "created": "2025-11-20T10:25:35.339379",
     "sessions": [
       {
+<<<<<<< HEAD
         "timestamp": "2025-12-05T09:49:20.855730",
         "type": "THERAPY_SESSION",
         "mvc_tau_max": 1.0,
         "mvc_tau_ref": 0.9,
         "difficulty": 0.9,
+=======
+        "timestamp": "2025-12-04T13:33:23.122355",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6688679245283019,
+        "difficulty": 0.6688679245283019,
+>>>>>>> 79c5498ee242e4e29daca227774c78a750ff81c2
         "flexion_rom": 0.0,
         "extension_rom": 0.0,
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+<<<<<<< HEAD
+=======
+      },
+      {
+        "timestamp": "2025-12-04T13:34:49.149062",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6688679245283019,
+        "difficulty": 0.6688679245283019,
+        "flexion_rom": 29.24,
+        "extension_rom": 112.12,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T13:42:56.043250",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6858490566037736,
+        "difficulty": 0.6858490566037736,
+        "flexion_rom": 26.34,
+        "extension_rom": 139.83,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 44
+      },
+      {
+        "timestamp": "2025-12-04T13:47:30.596723",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.4056603773584906,
+        "difficulty": 0.4056603773584906,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T13:56:30.299634",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.2952830188679245,
+        "difficulty": 0.2952830188679245,
+        "flexion_rom": 54.28,
+        "extension_rom": 45.75,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 2,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-04T14:02:19.124780",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.9,
+        "difficulty": 0.9,
+        "flexion_rom": -67.74,
+        "extension_rom": 57.1,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 30,
+        "session_highscore_ext": 0
+>>>>>>> 79c5498ee242e4e29daca227774c78a750ff81c2
       }
     ],
     "highscore_flex": 0,
@@ -1052,6 +1123,38 @@
         "extension_rom": 0.0,
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      }
+    ]
+  },
+  "bjarke": {
+    "name": "Bjarke",
+    "weight": 90.0,
+    "difficulty": 0.7862876254180602,
+    "created": "2025-12-04T14:11:00.305918",
+    "sessions": [
+      {
+        "timestamp": "2025-12-04T14:11:29.570980",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.7862876254180602,
+        "difficulty": 0.7862876254180602,
+        "flexion_rom": -47.94,
+        "extension_rom": 37.04,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 9
+      },
+      {
+        "timestamp": "2025-12-04T14:16:34.047053",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.7862876254180602,
+        "difficulty": 0.7862876254180602,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 30,
         "session_highscore_ext": 0
       }
     ]

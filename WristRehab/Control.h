@@ -102,7 +102,9 @@ public:
 
 
     float u_pwm = pid_.step(w_total, w_meas, dt);
-    const float TAU_FAULT_LIMIT = 1.0f;   // Nm, your chosen limit
+
+    const float TAU_FAULT_LIMIT = 5.0f;   // Nm, your chosen limit
+
     if (fabsf(tau_ext) > TAU_FAULT_LIMIT) {
       faultLatched_ = true;
       u_pwm = 0.0f;
@@ -148,20 +150,20 @@ public:
       int adc = analogRead(PIN_POT);
       float theta_pot_rad = adcToThetaRad(adc);
       //float theta_pot_deg = theta_pot_rad * RAD_TO_DEG;
-      float theta_pot_deg = fabs(theta_pot_rad * RAD_TO_DEG);
-      Serial.print(theta_pot_deg-90);   Serial.print(',');
+      float theta_pot_deg = (theta_pot_rad * RAD_TO_DEG); // fabs(theta_pot_rad * RAD_TO_DEG);
+      Serial.print(theta_pot_deg-0);   Serial.print(','); //SUPER NEEDED
       // Serial.print(theta_pot_rad);   // angle in degrees
       
-      Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1
-      // Serial.print(theta_pot_rad);          Serial.print(',');
+      Serial.print(digitalRead(11));        Serial.print(',');// button state: 0 or 1 SUPER NEEDED
+      Serial.print(theta_pot_rad);          Serial.print(',');
       // Serial.println(digitalRead(11));  // Serial.print(',');
       // Serial.print(theta_enc, 6);        Serial.print(',');
       // Serial.print(w_total, 6);          Serial.print(',');
-      // Serial.print(wUser_, 6);           Serial.print(',');
+      Serial.print(wUser_, 6);           Serial.print(',');
       // Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
-      Serial.println(tau_ext,5);        // Serial.print(',');
+      Serial.println(tau_ext,5);        // Serial.print(','); SUPER NEEDED
       // Serial.println(adm_.wAdm(),5);
     }
   }

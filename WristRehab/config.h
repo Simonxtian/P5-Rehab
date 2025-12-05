@@ -36,7 +36,7 @@ static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =   -0.0700f;   // align to your home
+static constexpr float POT_OFFSET_RAD =   -3.1400f;   // align to your home
 
 // ----------------- Gravity comp -----------------
 static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
@@ -82,7 +82,7 @@ static constexpr float Bv_INIT =0.18492f;
 static constexpr float Kv_INIT =0.47746f;
 // static constexpr float Kv_INIT = 0.0f;
 
-const float TAU_FAULT_LIMIT = 5.3f;   
+const float TAU_FAULT_LIMIT = 50.3f;   
 
 
 
