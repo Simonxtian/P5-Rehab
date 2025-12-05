@@ -16,13 +16,18 @@ from datetime import datetime
 # --- CONFIGURATION ---
 DEFAULT_BAUD = 460800
 DEFAULT_PORT = None 
-PATIENT_DB_FILE = "patients_db.json"
-CALIBRATION_FILE = r"WristRehab\calibration_data.json"
+
+# Get the script's directory and construct absolute paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
+
+PATIENT_DB_FILE = os.path.join(PROJECT_ROOT, "patients_db.json")
+CALIBRATION_FILE = os.path.join(SCRIPT_DIR, "calibration_data.json")
 
 # --- GAME PATHS ---
-GAME_1_PATH = r"Game 1 - Flexion\flexion_game.py"
-GAME_2_PATH = r"Game 2 - All\Flex_and_ext_game.py"
-GAME_3_PATH = r"Game 3 - Extension\extension.py"
+GAME_1_PATH = os.path.join(PROJECT_ROOT, "Game 1 - Flexion", "flexion_game.py")
+GAME_2_PATH = os.path.join(PROJECT_ROOT, "Game 2 - All", "Flex_and_ext_game.py")
+GAME_3_PATH = os.path.join(PROJECT_ROOT, "Game 3 - Extension", "extension.py")
 
 # Telemetry columns
 COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "tau_ext"]
@@ -81,15 +86,22 @@ class SerialWorker(threading.Thread):
 class PatientDatabase:
     def __init__(self, db_file=PATIENT_DB_FILE):
         self.db_file = db_file
+        print(f"[DEBUG] Loading database from: {os.path.abspath(self.db_file)}")
         self.patients = self._load_db()
+        print(f"[DEBUG] Loaded {len(self.patients)} patients: {list(self.patients.keys())}")
     
     def _load_db(self):
         if os.path.exists(self.db_file):
             try:
                 with open(self.db_file, 'r') as f:
-                    return json.load(f)
-            except:
+                    data = json.load(f)
+                    print(f"[DEBUG] Successfully loaded database with {len(data)} patients")
+                    return data
+            except Exception as e:
+                print(f"[ERROR] Failed to load database: {e}")
                 return {}
+        else:
+            print(f"[WARNING] Database file not found: {self.db_file}")
         return {}
     
     def _save_db(self):
@@ -790,7 +802,7 @@ class RehabGUI:
                 if len(parts) == len(COLS):
                     vals = [float(x) for x in parts]
                     if self.current_page == "therapy":
-                        self.pages["therapy"].lbl_tau.config(text=f"tau: {vals[2]:.3f}")
+                        self.pages["therapy"].lbl_tau.config(text=f"tau: {vals[4]:.3f}")
                     
                     if self.csv_writer:
                         self.csv_writer.writerow([time.time()] + vals)
@@ -874,7 +886,7 @@ class RehabGUI:
                 self._handle_line(line)
                 parts = line.split(',')
                 if len(parts) == len(COLS):
-                    t = float(parts[2])
+                    t = float(parts[4])
                     if t > tau_max:
                         tau_max = t
             except:

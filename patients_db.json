@@ -1,7 +1,7 @@
 {
   "alaa": {
     "name": "Alaa",
-    "weight": 69.0,
+    "weight": 70.0,
     "difficulty": 0.6,
     "created": "2025-11-18T13:04:58.382271",
     "sessions": [
@@ -865,6 +865,30 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T10:58:25.908715",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
+      },
+      {
+        "timestamp": "2025-12-05T10:59:31.861719",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.1,
+        "difficulty": 0.1,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
+        "session_highscore_ext": 0
       }
     ],
     "highscore": 0
@@ -876,26 +900,16 @@
     "created": "2025-11-20T10:25:35.339379",
     "sessions": [
       {
-<<<<<<< HEAD
-        "timestamp": "2025-12-05T09:49:20.855730",
-        "type": "THERAPY_SESSION",
-        "mvc_tau_max": 1.0,
-        "mvc_tau_ref": 0.9,
-        "difficulty": 0.9,
-=======
         "timestamp": "2025-12-04T13:33:23.122355",
         "type": "THERAPY_SESSION",
         "mvc_tau_max": 1.0,
         "mvc_tau_ref": 0.6688679245283019,
         "difficulty": 0.6688679245283019,
->>>>>>> 79c5498ee242e4e29daca227774c78a750ff81c2
         "flexion_rom": 0.0,
         "extension_rom": 0.0,
         "session_highscore_flex": 0,
         "session_highscore_all": 0,
         "session_highscore_ext": 0
-<<<<<<< HEAD
-=======
       },
       {
         "timestamp": "2025-12-04T13:34:49.149062",
@@ -956,7 +970,6 @@
         "session_highscore_flex": 0,
         "session_highscore_all": 30,
         "session_highscore_ext": 0
->>>>>>> 79c5498ee242e4e29daca227774c78a750ff81c2
       }
     ],
     "highscore_flex": 0,
@@ -1155,6 +1168,26 @@
         "extension_rom": 0.0,
         "session_highscore_flex": 0,
         "session_highscore_all": 30,
+        "session_highscore_ext": 0
+      }
+    ]
+  },
+  "d": {
+    "name": "D",
+    "weight": 70.0,
+    "difficulty": 0.6,
+    "created": "2025-12-05T11:00:10.012931",
+    "sessions": [
+      {
+        "timestamp": "2025-12-05T11:00:33.463400",
+        "type": "THERAPY_SESSION",
+        "mvc_tau_max": 1.0,
+        "mvc_tau_ref": 0.6,
+        "difficulty": 0.6,
+        "flexion_rom": 0.0,
+        "extension_rom": 0.0,
+        "session_highscore_flex": 0,
+        "session_highscore_all": 0,
         "session_highscore_ext": 0
       }
     ]

@@ -27,7 +27,7 @@ GAME_2_PATH = r"Game 2 - All\Flex_and_ext_game.py"
 GAME_3_PATH = r"Game 3 - Extension\extension.py"
 
 # Telemetry columns - Updated to match current Arduino output
-COLS = ["theta_pot","button_state","tau_ext"]
+COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "tau_ext"]
 
 # Safety threshold for minimum tau_ref (Nm)
 MIN_TAU_REF = 0.05  # Minimum torque reference for safety
