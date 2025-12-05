@@ -730,11 +730,9 @@ class RehabGUI:
         self.connected = True
         self.pages["therapy"].btn_connect.config(text="Disconnect")
         
-        # Start CSV logging
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.session_file = open(f"session_{ts}.csv", "w", newline="")
-        self.csv_writer = csv.writer(self.session_file)
-        self.csv_writer.writerow(["timestamp"] + COLS)
+        # CSV logging will be started when MVC test creates a session
+        self.session_file = None
+        self.csv_writer = None
         
         # Initialize Arduino
         time.sleep(1.0)
@@ -928,7 +926,21 @@ class RehabGUI:
             'session_highscore_ext': 0
         }
         self.patient_db.create_new_session(self.current_patient_id, master_session)
-        self.log("# Session Created. MVC saved.")
+        
+        # Create CSV file with patient name and session number
+        patient_name = self.current_patient['name'].replace(' ', '_')
+        session_num = len(self.current_patient['sessions'])
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = f"{patient_name}_session{session_num:03d}_{ts}.csv"
+        
+        # Start CSV logging
+        if self.session_file:
+            self.session_file.close()
+        self.session_file = open(csv_filename, "w", newline="")
+        self.csv_writer = csv.writer(self.session_file)
+        self.csv_writer.writerow(["timestamp"] + COLS)
+        
+        self.log(f"# Session Created. MVC saved. Logging to: {csv_filename}")
         
         self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
         time.sleep(0.2)
