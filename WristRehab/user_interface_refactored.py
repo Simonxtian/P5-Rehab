@@ -29,8 +29,8 @@ GAME_1_PATH = os.path.join(PROJECT_ROOT, "Game 1 - Flexion", "flexion_game.py")
 GAME_2_PATH = os.path.join(PROJECT_ROOT, "Game 2 - All", "Flex_and_ext_game.py")
 GAME_3_PATH = os.path.join(PROJECT_ROOT, "Game 3 - Extension", "extension.py")
 
-# Telemetry columns
-COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "tau_ext"]
+# --- TELEMETRY CONFIG ---
+COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "w_meas", "tau_ext"]
 MIN_TAU_REF = 0.05  # Minimum torque reference for safety
 
 
@@ -800,7 +800,7 @@ class RehabGUI:
                 if len(parts) == len(COLS):
                     vals = [float(x) for x in parts]
                     if self.current_page == "therapy":
-                        self.pages["therapy"].lbl_tau.config(text=f"tau: {vals[4]:.3f}")
+                        self.pages["therapy"].lbl_tau.config(text=f"tau: {vals[5]:.3f}")
                     
                     if self.csv_writer:
                         self.csv_writer.writerow([time.time()] + vals)
@@ -884,7 +884,7 @@ class RehabGUI:
                 self._handle_line(line)
                 parts = line.split(',')
                 if len(parts) == len(COLS):
-                    t = float(parts[4])
+                    t = float(parts[5])
                     if t > tau_max:
                         tau_max = t
             except:
@@ -943,8 +943,7 @@ class RehabGUI:
         self.log(f"# Session Created. MVC saved. Logging to: {csv_filename}")
         
         self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
-        time.sleep(0.2)
-        self._send("eq hold")
+
         time.sleep(0.2)
         self._send("adm on")
         time.sleep(0.2)

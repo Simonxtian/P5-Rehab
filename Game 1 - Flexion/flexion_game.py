@@ -4,6 +4,10 @@ from random import randint, choice
 from tkinter import Tk, Canvas, Button, NW, Toplevel
 from PIL import Image, ImageTk, ImageDraw 
 
+# --- Check for shared data mode ---
+USE_SHARED_DATA = "--use-shared-data" in sys.argv
+SHARED_DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "WristRehab", "live_angle_data.json")
+
 # --- CONFIG ---
 WIDTH, HEIGHT = 800, 600
 ROD_Y = 20
@@ -187,6 +191,10 @@ def find_arduino_port():
     return None
 
 def connect_arduino():
+    if USE_SHARED_DATA:
+        print("🎮 Using shared data mode - GUI maintains serial connection")
+        return "SHARED_MODE"
+    
     port = find_arduino_port()
     if not port:
         print("No Arduino detected")
@@ -417,6 +425,27 @@ class FishingGame:
     def update_from_arduino(self):
         global ButtonPress, PotNumber, last_button_state, val_recta, val_flexion
 
+        if USE_SHARED_DATA:
+            # Read from shared data file
+            try:
+                if os.path.exists(SHARED_DATA_FILE):
+                    with open(SHARED_DATA_FILE, 'r') as f:
+                        data = json.load(f)
+                        PotNumber = data.get('angle', 0.0)
+                        Button = int(data.get('button', 1.0))
+                        
+                        # Button logic (0 = pressed)
+                        if Button == 0 and last_button_state != 0:
+                            self.toggle_sweep()
+                        
+                        last_button_state = Button
+            except:
+                pass  # Silently continue on read errors
+            
+            if not self.game_over:
+                self.root.after(20, self.update_from_arduino)  # ~50Hz
+            return
+
         if self.arduino:
             try:
                 raw = self.arduino.readline()
@@ -561,7 +590,23 @@ def start_menu(root):
     def check_button_press():
         global last_button_state
 
-        if arduino:
+        if USE_SHARED_DATA:
+            # Read from shared data file
+            try:
+                if os.path.exists(SHARED_DATA_FILE):
+                    with open(SHARED_DATA_FILE, 'r') as f:
+                        data = json.load(f)
+                        btn_state = data.get('button', 1.0)
+                        Button = int(btn_state)
+                        
+                        if Button == 0 and last_button_state != 0:
+                            start_game()
+                            return
+                        
+                        last_button_state = Button
+            except:
+                pass
+        elif arduino:
             try:
                 raw = arduino.readline()
                 s = raw.decode("utf-8", errors="ignore").strip()

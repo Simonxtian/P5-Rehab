@@ -8,6 +8,10 @@ from PIL import Image, ImageTk
 import json
 import os
 
+# --- Check for shared data mode ---
+USE_SHARED_DATA = "--use-shared-data" in sys.argv
+SHARED_DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "WristRehab", "live_angle_data.json")
+
 # --- Calibration Globals ---
 val_flexion = 0
 val_extension = 1023
@@ -229,6 +233,12 @@ def find_arduino_port():
 
 def connect_arduino():
     global arduino
+    
+    if USE_SHARED_DATA:
+        print("🎮 Using shared data mode - GUI maintains serial connection")
+        arduino = None  # No direct connection needed
+        return "SHARED_MODE"
+    
     port = find_arduino_port()
     if not port:
         print("No Arduino found. Basket will use keyboard control.")
@@ -550,6 +560,36 @@ def start_game(selected_speed):
 def update_from_arduino():
     global ButtonPress, normalized, angle, val_flexion, val_extension
 
+    if USE_SHARED_DATA:
+        # Read from shared data file
+        try:
+            if os.path.exists(SHARED_DATA_FILE):
+                with open(SHARED_DATA_FILE, 'r') as f:
+                    data = json.load(f)
+                    angle = data.get('angle', 0.0)
+                    btn_state = data.get('button', 1.0)
+                    ButtonPress = 1 if btn_state == 0 else 0
+                    
+                    # Normalize angle between flexion and extension
+                    cal_min = min(val_flexion, val_extension)
+                    cal_max = max(val_flexion, val_extension)
+                    clamped = max(cal_min, min(cal_max, angle))
+                    normalized = (clamped - cal_min) / (cal_max - cal_min)
+                    
+                    # Normalized to y position
+                    top_limit = 0
+                    bot_limit = HEIGHT - 120
+                    y_pos = bot_limit - normalized * (bot_limit - top_limit)
+                    y_pos = max(top_limit, min(bot_limit, y_pos))
+                    
+                    if bar_obj:
+                        bar_obj.set_position(int(y_pos))
+        except Exception as e:
+            pass  # Silently continue on read errors
+        
+        root.after(20, update_from_arduino)  # ~50Hz update
+        return
+    
     if arduino:
         try:
             raw = arduino.readline().decode('utf-8', errors='ignore').strip()

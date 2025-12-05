@@ -160,7 +160,7 @@ public:
       // Serial.print(theta_enc, 6);        Serial.print(',');
       // Serial.print(w_total, 6);          Serial.print(',');
       Serial.print(wUser_, 6);           Serial.print(',');
-      // Serial.print(w_meas, 6);           Serial.print(',');
+      Serial.print(w_meas, 6);           Serial.print(',');
       // Serial.print(u_pwm, 1);            Serial.print(',');
       // Serial.print(fs_.forceFiltered(),4);Serial.print(',');
       Serial.println(tau_ext,5);        // Serial.print(','); SUPER NEEDED

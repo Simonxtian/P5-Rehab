@@ -4,6 +4,10 @@ from random import randint, choice
 from tkinter import Tk, Canvas, Button, NW, Toplevel
 from PIL import Image, ImageTk, ImageDraw
 
+# --- Check for shared data mode ---
+USE_SHARED_DATA = "--use-shared-data" in sys.argv
+SHARED_DATA_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "WristRehab", "live_angle_data.json")
+
 # --- CONFIG ---
 HEIGHT, WIDTH = 700, 600
 STAR_Y = 5
@@ -214,6 +218,10 @@ def find_arduino_port():
 
 
 def connect_arduino():
+    if USE_SHARED_DATA:
+        print("🎮 Using shared data mode - GUI maintains serial connection")
+        return "SHARED_MODE"
+    
     port = find_arduino_port()
     if not port:
         print("No Arduino found (keyboard only).")
@@ -485,6 +493,57 @@ class RocketGame:
         # Always reschedule
         self.root.after(UPDATE_MS, self.update_from_arduino)
 
+        # --- SHARED DATA MODE ---
+        if USE_SHARED_DATA:
+            try:
+                if os.path.exists(SHARED_DATA_FILE):
+                    with open(SHARED_DATA_FILE, 'r') as f:
+                        data = json.load(f)
+                        angle = data.get('angle', 0.0)
+                        btn_state = data.get('button', 1.0)
+                        ButtonNumber = int(btn_state)
+                        
+                        # Button handling 
+                        if ButtonNumber == 0:
+                            ButtonPress = 1
+                        elif ButtonNumber == 1:
+                            ButtonPress = 0
+
+                        # range only for possible values
+                        if angle < -90 or angle > 180:
+                            return
+
+                        # ignore sudden jumps from previous angle 
+                        if self.prev_raw_angle is not None:
+                            if abs(angle - self.prev_raw_angle) > 45:
+                                return
+
+                        self.prev_raw_angle = angle
+
+                        # Map angle -> extension_pct [0,1] using calibration data
+                        cal_range = val_extension - val_recta
+                        if cal_range == 0:
+                            extension_pct = 0.5
+                        else:
+                            raw_pct = (angle - val_recta) / cal_range
+                            extension_pct = max(0.0, min(1.0, raw_pct))
+
+                        JUMP_THRESHOLD = 0.8  
+
+                        if (
+                            self.prev_extension_pct < JUMP_THRESHOLD
+                            and extension_pct >= JUMP_THRESHOLD
+                            and not self.is_jumping
+                            and not self.game_over
+                        ):
+                            self.attempt_jump()
+
+                        self.prev_extension_pct = extension_pct
+            except:
+                pass
+            return
+
+        # --- SERIAL MODE (original code) ---
         if not self.arduino:
             return
 
@@ -800,7 +859,23 @@ def start_menu(root):
     def check_button_press():
         global ButtonPress, last_button_state
 
-        if arduino:
+        if USE_SHARED_DATA:
+            # Read from shared data file
+            try:
+                if os.path.exists(SHARED_DATA_FILE):
+                    with open(SHARED_DATA_FILE, 'r') as f:
+                        data = json.load(f)
+                        btn_state = data.get('button', 1.0)
+                        ButtonNumber = int(btn_state)
+                        
+                        if ButtonNumber == 0 and last_button_state != 0:
+                            ButtonPress = 1
+                        elif ButtonNumber == 1:
+                            ButtonPress = 0
+                        last_button_state = ButtonNumber
+            except Exception:
+                pass
+        elif arduino:
             try:
                 latest_line = arduino.readline().decode("utf-8", errors="ignore").strip()
                 if latest_line:

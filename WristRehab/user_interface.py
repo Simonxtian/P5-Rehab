@@ -18,19 +18,20 @@ from datetime import datetime
 DEFAULT_BAUD = 460800 #Correcrted baud rate
 
 DEFAULT_PORT = None 
-PATIENT_DB_FILE = "patients_db.json"
-CALIBRATION_FILE = r"WristRehab\calibration_data.json"
+PATIENT_DB_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "patients_db.json")
+CALIBRATION_FILE = os.path.join(os.path.dirname(__file__), "calibration_data.json")
+SHARED_DATA_FILE = os.path.join(os.path.dirname(__file__), "live_angle_data.json")  # Shared file for game communication
 
 # --- GAME PATHS ---
-GAME_1_PATH = r"Game 1 - Flexion\flexion_game.py"
-GAME_2_PATH = r"Game 2 - All\Flex_and_ext_game.py"
-GAME_3_PATH = r"Game 3 - Extension\extension.py"
+GAME_1_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Game 1 - Flexion", "flexion_game.py")
+GAME_2_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Game 2 - All", "Flex_and_ext_game.py")
+GAME_3_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "Game 3 - Extension", "extension.py")
 
 # Telemetry columns - Updated to match current Arduino output
-COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "tau_ext"]
+COLS = ["theta_pot", "button_state","theta_pot_rad", "wUser_", "w_meas", "tau_ext"]
 
 # Safety threshold for minimum tau_ref (Nm)
-MIN_TAU_REF = 0.05  # Minimum torque reference for safety
+MIN_TAU_REF = 1.0  # Minimum torque reference for safety
 
 # CLASS 1: Serial Worker (Background Thread)
 class SerialWorker(threading.Thread):
@@ -426,10 +427,10 @@ class RehabGUI:
             self.ser_thread.start()
             self.connected = True
             self.btn_connect.config(text="Disconnect")
-            ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.session_file = open(f"session_{ts}.csv", "w", newline="")
-            self.csv_writer = csv.writer(self.session_file)
-            self.csv_writer.writerow(["timestamp"] + COLS)
+            
+            # CSV logging will be started when MVC test creates a session
+            self.session_file = None
+            self.csv_writer = None
             
             # Wait for Arduino to be ready and ensure admittance is disabled
             time.sleep(1.0)  # Longer delay to ensure serial is ready and auto-calibration completes
@@ -437,6 +438,10 @@ class RehabGUI:
             time.sleep(0.2)
             self._log("# Admittance disabled on connect")
             self._log("# Note: Arduino auto-calibrated load cell at startup")
+            
+            # Restore controller parameters if session was active
+            if self.current_patient and self.session_active:
+                self._restore_controller_parameters()
         else:
             self.stop_event.set()
             self.connected = False
@@ -445,6 +450,38 @@ class RehabGUI:
             self.btn_stop_session.config(state="disabled")
             self.btn_goto_games.config(state="disabled")
             if self.session_file: self.session_file.close()
+    
+    def _restore_controller_parameters(self):
+        """Restore mass, arm length, and admittance parameters after Arduino reset."""
+        try:
+            # Restore mass
+            w = float(self.therapy_weight_var.get())
+            mass = 0.006 * w + 0.072
+            self._send("tare")
+            time.sleep(0.3)
+            self._send(f"totalmass {mass:.4f}")
+            time.sleep(0.2)
+            self._log(f"# Restored mass: {mass:.4f} kg")
+            
+            # Restore arm length
+            length = float(self.arm_length_var.get())
+            self._send(f"armlength {length:.4f}")
+            time.sleep(0.2)
+            self._log(f"# Restored arm length: {length:.4f} m")
+            
+            # Restore admittance parameters if available
+            if self.last_J is not None and self.last_B is not None and self.last_K is not None:
+                K = self.last_K if self.spring_enabled else 0.0
+                self._send(f"adm {self.last_J:.4f} {self.last_B:.4f} {K:.4f}")
+                time.sleep(0.2)
+                self._send("eq hold")
+                time.sleep(0.2)
+                self._send("adm on")
+                time.sleep(0.2)
+                self._log(f"# Restored admittance: J={self.last_J:.4f}, B={self.last_B:.4f}, K={K:.4f}")
+                self._log("# Session parameters restored - ready to continue")
+        except Exception as e:
+            self._log(f"# Warning: Could not restore all parameters: {e}")
 
     def _send(self, cmd):
         try:
@@ -475,6 +512,21 @@ class RehabGUI:
             try:
                 raw_angle = float(parts[0])
                 self.current_theta_deg = raw_angle
+                
+                # Update shared data file for games (only if button is pressed and we have full data)
+                if len(parts) >= 2:
+                    button_state = float(parts[1])
+                    shared_data = {
+                        "angle": raw_angle,
+                        "button": button_state,
+                        "timestamp": time.time()
+                    }
+                    try:
+                        with open(SHARED_DATA_FILE, 'w') as f:
+                            json.dump(shared_data, f)
+                    except:
+                        pass  # Don't let file write errors break telemetry
+                
                 if hasattr(self, 'lbl_cal_value'):
                     self.lbl_cal_value.config(text=f"{raw_angle:.2f}°")
                 if hasattr(self, 'lbl_theta_pot'):
@@ -482,8 +534,8 @@ class RehabGUI:
                 if len(parts) == len(COLS):
                     vals = [float(x) for x in parts]
                     if hasattr(self, 'lbl_tau'):
-                        # tau_ext is now at index 2 (theta_pot, button_state, tau_ext)
-                        self.lbl_tau.config(text=f"tau: {vals[2]:.3f}")
+                        # tau_ext is now at index 5 (theta_pot, button_state, theta_pot_rad, wUser_, w_meas, tau_ext)
+                        self.lbl_tau.config(text=f"tau: {vals[5]:.3f}")
                     if self.csv_writer:
                         self.csv_writer.writerow([time.time()] + vals)
             except: pass
@@ -545,10 +597,6 @@ class RehabGUI:
             messagebox.showerror("Error", "Load a patient first")
             return
         try:
-            # Tare before setting mass
-            self._send("tare")
-            time.sleep(0.3)
-            self._log("# Load cell tared")
             
             w = float(self.therapy_weight_var.get())
             mass = 0.006 * w + 0.072
@@ -557,6 +605,10 @@ class RehabGUI:
             time.sleep(0.1)  # Give Arduino time to process
             self._log(f"# Mass set: {mass:.4f} kg (from weight: {w} kg)")
             messagebox.showinfo("Success", f"Mass set to {mass:.4f} kg")
+
+            self._send("tare")
+            time.sleep(0.3)
+            self._log("# Load cell tared")
         except ValueError:
             messagebox.showerror("Error", "Invalid weight value")
         except Exception as e:
@@ -570,11 +622,12 @@ class RehabGUI:
             self._send("adm off")
             time.sleep(0.2)
             self.session_active = False
+        
+    
         self._log("MVC Started...")
         self._send("adm off")
         time.sleep(0.5)
-        self._send("eq hold")
-        time.sleep(0.2)
+
         
         t_end = time.time() + 5.0
         tau_max = 0.0
@@ -585,8 +638,8 @@ class RehabGUI:
                 self._handle_line(line)
                 parts = line.split(',')
                 if len(parts) == len(COLS):
-                    # tau_ext is now at index 2
-                    t = float(parts[2])
+                    # tau_ext is now at index 5
+                    t = float(parts[5])
                     if t > tau_max: tau_max = t
             except: pass
         if tau_max <= 0: tau_max = 1.0
@@ -624,7 +677,21 @@ class RehabGUI:
             'session_highscore_ext': 0
         }
         self.patient_db.create_new_session(self.current_patient_id, master_session)
-        self._log("# Session Created. MVC saved.")
+        
+        # Create CSV file with patient name and session number
+        patient_name = self.current_patient['name'].replace(' ', '_')
+        session_num = len(self.current_patient['sessions'])
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        csv_filename = f"{patient_name}_session{session_num:03d}_{ts}.csv"
+        
+        # Start CSV logging
+        if self.session_file:
+            self.session_file.close()
+        self.session_file = open(csv_filename, "w", newline="")
+        self.csv_writer = csv.writer(self.session_file)
+        self.csv_writer.writerow(["timestamp"] + COLS)
+        
+        self._log(f"# Session Created. MVC saved. Logging to: {csv_filename}")
         
         # Send admittance parameters
         self._send(f"adm {J:.4f} {B:.4f} {K:.4f}")
@@ -825,28 +892,32 @@ class RehabGUI:
         else:
             self.current_game_json_path = None
 
-        # Auto-Disconnect to free up serial port
-        if self.connected:
-            self.on_connect()
-            time.sleep(0.5)
+        # DO NOT disconnect - keep GUI connected and share data via file
+        # The game will read from SHARED_DATA_FILE instead of opening serial
+        
+        # Ensure shared data file exists and is initialized
+        try:
+            with open(SHARED_DATA_FILE, 'w') as f:
+                json.dump({"angle": self.current_theta_deg, "button": 1.0, "timestamp": time.time()}, f)
+        except:
+            pass
 
         try:
             p_id = self.current_patient_id if self.current_patient_id else "guest"
             p_name = self.current_patient['name'] if self.current_patient else "Guest"
 
-            # Pass both ID and Name to the game script
+            # Pass both ID and Name to the game script, plus a flag to use shared data
             self.current_game_process = subprocess.Popen(
-                [sys.executable, game_filename, p_id, p_name],
+                [sys.executable, game_filename, p_id, p_name, "--use-shared-data"],
                 cwd=game_dir 
             )
             
             self.btn_goto_games.config(state="disabled")
-            self._log(f"Launched {game_title}")
+            self._log(f"Launched {game_title} (using shared data mode)")
             
             self._monitor_game(game_title, score_key)
         except Exception as e:
             messagebox.showerror("Launch Error", str(e))
-            self.on_connect()
 
     def _monitor_game(self, game_title, score_key):
         if self.current_game_process.poll() is None:
@@ -883,7 +954,6 @@ class RehabGUI:
             messagebox.showinfo("Game Over", f"Session Updated!\nScore: {final_session_score}")
 
         self.current_game_process = None
-        self.on_connect()
         self.btn_goto_games.config(state="normal")
 
 def main():

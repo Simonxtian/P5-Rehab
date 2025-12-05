@@ -7,11 +7,11 @@
   "guest": {
     "name": "Guest",
     "highscore": 2,
-    "session_highscore": 2
+    "session_highscore": 0
   },
   "alaa": {
     "name": "Alaa",
     "highscore": 7,
-    "session_highscore": 7
+    "session_highscore": 0
   }
 }

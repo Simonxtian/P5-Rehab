@@ -35,5 +35,10 @@
     "name": "Bjarke",
     "highscore": 30,
     "session_highscore": 30
+  },
+  "marcus": {
+    "name": "Marcus",
+    "highscore": 29,
+    "session_highscore": 29
   }
 }
