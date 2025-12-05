@@ -17,7 +17,7 @@ OBJECT_TYPES = [
     ("fish", "fish.png", +1),
     ("trash", "trash.png", -2)
 ]
-NUM_OBJECTS = 2
+NUM_OBJECTS = 10
 
 # --- Global Variables ---
 arduino = None
@@ -505,8 +505,6 @@ class FishingGame:
         for tid in self.temp_texts:
             self.canvas.delete(tid)
         self.temp_texts.clear()
-
-        total_time = round(time.time() - self.start_time, 1)
         
         new_high = save_score_data(self.score)
 
@@ -515,9 +513,9 @@ class FishingGame:
         win.resizable(False, False)
         c = Canvas(win, width=400, height=350)
         c.pack()
-        # Show the Score, All-Time Highscore, and Time taken
+        # Show the Score, All-Time Highscore
         msg = (f" You caught all good items!\n\nYour Score: {self.score}"
-               f"\nAll-Time Highscore: {new_high}\nTime: {total_time}s")
+               f"\nAll-Time Highscore: {new_high}")
         c.create_text(200, 120, text=msg, font=("Comic Sans MS", 18, "bold"),
                       fill="black", justify="center")
         

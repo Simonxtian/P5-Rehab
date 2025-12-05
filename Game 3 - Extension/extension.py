@@ -650,7 +650,7 @@ class RocketGame:
             150,
             text=f"All-Time Highscore: {new_hs}",
             font=("Arial", 16),
-            fill="blue",
+            fill="black",
         )
         # Buttons for play again or exit
         Button(
@@ -710,11 +710,11 @@ class RocketGame:
             150,
             text=f"All-Time Highscore: {new_hs}",
             font=("Arial", 16),
-            fill="blue",
+            fill="black",
         )
         Button(
             win,
-            text="CONTINUE",
+            text="NEXT LEVEL",
             bg="green",
             fg="white",
             font=("Arial", 14, "bold"),
