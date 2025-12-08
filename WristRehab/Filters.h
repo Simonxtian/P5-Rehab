@@ -1,4 +1,4 @@
-#pragma once
+x #pragma once
 #include <Arduino.h>
 #include "Config.h"
 #include "Utils.h"
@@ -12,6 +12,6 @@ inline float potNorm(int adc){
 inline float adcToThetaRad(int adc){
   float x = potNorm(adc);
   float theta_raw = THETA_MIN_RAD + x * (THETA_MAX_RAD - THETA_MIN_RAD);
-  return theta_raw + POT_OFFSET_RAD; // align to horizontal
+  return theta_raw + POT_OFFSET_RAD; 
 }
 

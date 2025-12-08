@@ -7,8 +7,7 @@
 #include "ForceSensor.h"
 #include "Admittance.h"
 #include "VelocityPID.h"
-#include "Filters.h"   // for adcToThetaRad used in telemetry
-
+#include "Filters.h" 
 class Control {
 public:
   void begin() {
@@ -16,7 +15,7 @@ public:
     enc_.begin();
     fs_.begin();
     adm_.begin();
-    pid_.begin();  // Initialize PID controller
+    pid_.begin(); 
     lastLoopUs_ = micros();
     lastLogMs_  = millis();
   }
@@ -36,7 +35,6 @@ public:
 
     
 
-    // encoder & speed
     float theta_enc = enc_.thetaRad();
     enc_.updateSpeed();
     float w_meas = enc_.wRadPerSec();
@@ -144,7 +142,6 @@ public:
 
 
 
-    // --- Telemetry for game (minimal stream) ---
     if ((millis() - lastLogMs_) >= LOG_PERIOD_MS){
       lastLogMs_ = millis();
       int adc = analogRead(PIN_POT);
@@ -177,24 +174,16 @@ public:
   void setTareAngle(float theta_rad){ fs_.setTareAngle(theta_rad); }
   void setArmLength(float length_m){ fs_.setArmLength(length_m); }
 
-  // Query whether admittance control is currently enabled.  This exposes
-  // the state of the underlying Admittance object for use by
-  // calibration routines.
+
   bool admIsEnabled() const { return adm_.enabled(); }
 
-  // Return the current user velocity command (rad/s).
   float getUserVel() const { return wUser_; }
 
-  // Expose the underlying ForceSensor for calibration routines.  This
-  // method should be used sparingly as it breaks encapsulation; the
-  // Calibrator class relies on it to adjust calibration factors and
-  // offsets.
   ForceSensor& forceSensor() { return fs_; }
 
   // Expose encoder for calibration without re-initializing interrupts.
   Encoder& encoder() { return enc_; }
 
-  // ---- Manual override controls ----
   void overridePWM(float pwm, uint32_t ms){
     overridePWM_ = saturate(pwm, -PWM_MAX, PWM_MAX);
     if (ms==0){ overrideActive_ = true; overrideEndMs_ = UINT32_MAX; }

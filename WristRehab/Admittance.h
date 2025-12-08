@@ -13,7 +13,6 @@ public:
     lastPosUs_ = micros();
     enabled_ = true;
 
-    // timing stats init
     accDtUs_ = 0;
     count_   = 0;
     loopHz_  = 0.0f;
@@ -27,12 +26,10 @@ public:
 
   void holdEq(float theta_now){ thetaEq_ = theta_now; }
 
-  // Call at ~200 Hz; supply encoder theta and external torque
   void update(float theta_enc, float tau_ext){
     unsigned long now = micros();
     if ((now - lastPosUs_) < POS_DT_US) return;
 
-    // --- real dt used for this admittance step ---
     unsigned long dt_us = now - lastPosUs_;
     lastPosUs_ = now;
     float dt = dt_us * 1e-6f;
@@ -40,16 +37,13 @@ public:
     if (fabs(theta_err<radians(1.5f))) theta_err=0.0f;
     float spring = params_.Kv * (theta_enc - thetaEq_);
     
-    // Improved discretization with better numerical stability
     float denom  = params_.Jv + params_.Bv * dt; 
     if (denom < 1e-6f) denom = 1e-6f;
     float numer  = params_.Jv * wAdm_ + (tau_ext - spring) * dt;
     float wNext  = numer / denom;
     
-    // Add saturation and rate limiting for stability
     wNext = saturate(wNext, -W_ADM_MAX, W_ADM_MAX);
     
-    // Rate limiting to prevent sudden jumps
     float dw = (wNext - wAdm_) / dt;
     if (fabs(dw) > DW_ADM_MAX) {
       wNext = wAdm_ + copysignf(DW_ADM_MAX * dt, dw);
@@ -58,11 +52,9 @@ public:
     wAdm_ = wNext;
 
 
-    // --- timing stats: accumulate dt of *actual* updates ---
     accDtUs_ += dt_us;
     count_++;
 
-    // update frequency estimate roughly once per "second" of accumulated time
     if (accDtUs_ >= 1000000UL) {
       if (count_ > 0) {
         float avgDtUs = accDtUs_ / (float)count_;
@@ -76,7 +68,6 @@ public:
   float wAdm() const { return enabled_ ? wAdm_ : 0.0f; }
   float thetaEq() const { return thetaEq_; }
 
-  // --- new: expose effective admittance loop frequency in Hz ---
   float loopHz() const { return loopHz_; }
 
 private:
@@ -86,7 +77,6 @@ private:
   unsigned long lastPosUs_{0};
   bool enabled_{true};
 
-  // --- timing stats ---
   unsigned long accDtUs_{0};
   uint32_t      count_{0};
   float         loopHz_{0.0f};

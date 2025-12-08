@@ -24,7 +24,6 @@ public:
   inline float thetaRad() const { return encCount_ * COUNT_TO_RAD; }
   inline float wRadPerSec() const { return wMeas_; }
 
-  // Call at LOOP_HZ timing to update speed with windowing/median/EMA
   void updateSpeed(){
     unsigned long now = micros();
     long dC = encCount_ - lastEnc_;

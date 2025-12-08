@@ -50,8 +50,6 @@ static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force (lower = 
 static constexpr float Omega_EMA_ALPHA = 0.10f;
 
 // Butterworth 2nd-order LPF coefficients for force filtering
-// Generate these from MATLAB: [b,a] = butter(2, Wn, 'low');
-// where Wn = cutoff_freq / (sample_rate/2)
 static constexpr float BUTTER_B0 = 0.0675f;
 static constexpr float BUTTER_B1 = 0.1349f;
 static constexpr float BUTTER_B2 = 0.0675f;

@@ -14,7 +14,6 @@ inline float emaStep(float prev, float x, float alpha) {
 //        - a1 y[k-1] - a2 y[k-2];
 class ButterworthLP2 {
 public:
-  // Initialize with coefficients from Config.h
   void begin(float b0_val, float b1_val, float b2_val, float a1_val, float a2_val) {
     b0 = b0_val;
     b1 = b1_val;
@@ -27,7 +26,6 @@ public:
     y1 = y2 = 0.0f;
   }
 
-  // Call once per sample (e.g. every 1/Fs seconds)
   float update(float x) {
     float y = b0 * x + b1 * x1 + b2 * x2
                     - a1 * y1 - a2 * y2;
@@ -45,7 +43,6 @@ public:
     x1 = x2 = y1 = y2 = value;
   }
 
-  // coefficients
   float b0, b1, b2;
   float a1, a2;
 

@@ -71,7 +71,6 @@ void SerialParser::poll(){
     }
 
   } else if (token.equalsIgnoreCase("pwm")){
-    // manual PWM override: pwm <signed -255..255> [ms]
     float pwm = Serial.parseFloat();
     long ms = Serial.parseInt();
     ctrl_.overridePWM(pwm, (ms > 0) ? (uint32_t)ms : 0);
@@ -91,7 +90,6 @@ void SerialParser::poll(){
     }
 
   } else if (token.equalsIgnoreCase("test")){
-    // simple bring-up self test: +120 PWM 1s, -120 PWM 1s, stop
     ctrl_.overridePWM(+120, 1000);
     delay(1050);
     ctrl_.overridePWM(-120, 1000);
@@ -107,6 +105,5 @@ void SerialParser::poll(){
 
 
 
-  // flush any leftover chars on the line
   while (Serial.available()) Serial.read();
 }

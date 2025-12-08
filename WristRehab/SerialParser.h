@@ -2,7 +2,7 @@
 #include <Arduino.h>
 #include "Admittance.h"
 
-class Control; // fwd
+class Control; 
 
 class SerialParser {
 public:
