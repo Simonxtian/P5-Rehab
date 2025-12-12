@@ -12,7 +12,7 @@ public:
 
   float step(float w_cmd, float w_meas, float dt){
     float e = w_cmd - w_meas;
-    if (fabs(e) < 0.05f) e = 0.0f; 
+    // if (fabs(e) < 0.01f) e = 0.0f; 
     
     float u_unsat = Kp_*e + iTerm_;
     if (fabs(u_unsat) < PWM_MAX - 10.0f) {

@@ -29,25 +29,22 @@ static constexpr float COUNTS_PER_N = 62150.0f;   // set so get_units() returns 
 static constexpr float ARM_LENGTH_M = 0.09f;      // [m]
 static constexpr float TORQUE_SIGN  = -1.0f;      // flip if needed
 
-// ----------------- Potentiometer mapping -----------------
+// ----------------- Potentiometer  -----------------
 static constexpr int   POT_ADC_MIN   = 0;
 static constexpr int   POT_ADC_MAX   = 1023;
 static constexpr float THETA_MIN_DEG = 0.0f;
 static constexpr float THETA_MAX_DEG = 270.0f;
 static constexpr float THETA_MIN_RAD = THETA_MIN_DEG * DEG_TO_RAD;
 static constexpr float THETA_MAX_RAD = THETA_MAX_DEG * DEG_TO_RAD;
-static constexpr float POT_OFFSET_RAD =   -1.56f;   // align to your home
-
-// ----------------- Gravity comp -----------------
-static constexpr float DELTA_OFFSET_RAD = 0.0f;   // phase offset if needed
+static constexpr float POT_OFFSET_RAD =   -2.0300f+1.57f;
 
 
 
 // ----------------- Filters & timing -----------------
-static constexpr unsigned long SPEED_WIN_US =1000;  // speed oversampling window
+static constexpr unsigned long SPEED_WIN_US =1;  // speed oversampling window
 static constexpr uint8_t W_MED_WIN = 3;               // median length (1,3,5,…)
 static constexpr float FORCE_EMA_ALPHA = 1.0f;        // LPF for force (lower = more filtering)
-static constexpr float Omega_EMA_ALPHA = 0.10f;
+static constexpr float Omega_EMA_ALPHA = 1.0f;
 
 // Butterworth 2nd-order LPF coefficients for force filtering
 static constexpr float BUTTER_B0 = 0.0675f;

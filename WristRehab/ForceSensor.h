@@ -17,7 +17,7 @@ public:
     forceFiltered_ = 0.0f;
     // forceEma_ = 0.0f;
     tauExt_ = 0.0f;
-    totalMassKg_ = 0.00f;
+    totalMassKg_ = 0.072f+0.420f;
     thetaTareRad_ = 1.54f;  
   }
   void tare(uint8_t times=20){ scale_.tare(times); }
