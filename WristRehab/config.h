@@ -5,8 +5,8 @@
 // -------------------- Pins --------------------
 static constexpr int PIN_IN1 = 10;   // H-bridge PWM
 static constexpr int PIN_IN2 = 9;    // H-bridge PWM
-static constexpr int PIN_ENC_A = 3;  // Leonardo supports 0,1,2,3,7
-static constexpr int PIN_ENC_B = 2;
+static constexpr int PIN_ENC_A = 2;  // Leonardo supports 0,1,2,3,7
+static constexpr int PIN_ENC_B = 3;
 static constexpr int PIN_POT   = A0;
 static constexpr int HX_DOUT   = 5;
 static constexpr int HX_SCK    = 6;
